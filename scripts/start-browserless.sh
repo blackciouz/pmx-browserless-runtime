@@ -38,7 +38,9 @@ if [ ! -d node_modules/playwright ]; then
 fi
 
 if [ -z "${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}" ]; then
-  npx playwright install chromium >/tmp/pmx-playwright-install.log 2>&1 || true
+  npx playwright install --with-deps chromium >/tmp/pmx-playwright-install.log 2>&1 \
+    || npx playwright install chromium >>/tmp/pmx-playwright-install.log 2>&1 \
+    || true
 fi
 
 exec node pmx-browserless-lite.cjs
