@@ -28,7 +28,7 @@
     "TIMEOUT": "${localEnv:TIMEOUT:300000}",
     "MAX_MEMORY_PERCENT": "${localEnv:MAX_MEMORY_PERCENT:95}",
     "MAX_CPU_PERCENT": "${localEnv:MAX_CPU_PERCENT:95}",
-    "PMX_BROWSERLESS_MODE": "${localEnv:PMX_BROWSERLESS_MODE:lite}"
+    "PMX_BROWSERLESS_MODE": "${localEnv:PMX_BROWSERLESS_MODE:next-api}"
   },
   "postCreateCommand": "cd /workspaces/pmx-browserless-runtime && sh scripts/start-codespace.sh",
   "postStartCommand": "cd /workspaces/pmx-browserless-runtime && sh scripts/start-codespace.sh"
