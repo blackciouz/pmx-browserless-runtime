@@ -1,7 +1,6 @@
 const http = require('http');
 const os = require('os');
 const { URL } = require('url');
-const { chromium } = require('playwright');
 
 const TOKEN = process.env.BROWSERLESS_TOKEN || process.env.TOKEN || '';
 const PORT = Number(process.env.PORT || 3000);
@@ -92,6 +91,9 @@ function createTimeout(timeoutMs) {
 async function runFunction(code, context, timeoutMs) {
   const fn = compile(code);
   if (typeof fn !== 'function') throw new Error('Browserless code did not export a function');
+  const playwright = await import('playwright');
+  const chromium = playwright.chromium || (playwright.default && playwright.default.chromium);
+  if (!chromium) throw new Error('Playwright chromium is unavailable');
 
   let browser;
   const work = (async () => {

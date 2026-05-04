@@ -21,6 +21,18 @@ supports the PMX endpoints used for qualification and campaign runs:
 The lite fallback does not expose Browserless CDP/live-session endpoints. Use
 Docker Browserless for human captcha live intervention.
 
+## Modes
+
+```env
+PMX_BROWSERLESS_MODE=auto      # Docker when available, then Playwright lite
+PMX_BROWSERLESS_MODE=lite      # Always use pmx-browserless-lite.cjs
+PMX_BROWSERLESS_MODE=next-api  # Use Next.js API route /api/browserless
+```
+
+Use `next-api` for Firebase Studio, Z.ai, and similar sandboxes where standalone
+Node processes are killed after roughly 60-90 seconds. In that mode the browser
+runner lives inside the main Next.js process.
+
 ## Pressure URL
 
 Browserless exposes:
@@ -62,19 +74,49 @@ PMX can use this repository as a stable template/reference. The API currently st
 
 ## Firebase Studio Notes
 
-Firebase Studio can use this repo as a plain workspace. Start the server with:
+Firebase Studio/Z.ai can use this repo as a Next.js workspace:
 
 ```bash
 export BROWSERLESS_TOKEN=<token>
 export CONCURRENT=1
 export QUEUED=20
 export TIMEOUT=300000
-export PMX_BROWSERLESS_MODE=lite
+export PMX_BROWSERLESS_MODE=next-api
 sh scripts/start-browserless.sh
 ```
 
-Then expose port `3000` publicly and register the resulting `/pressure?token=...`
-URL in PMX.
+Then expose port `3000` publicly and register these URLs in PMX:
+
+```text
+Pressure URL:
+https://<host>/api/browserless?action=pressure&token=<TOKEN>
+
+Advanced function URL:
+https://<host>/api/browserless?action=function&token={token}&timeout={timeout}
+```
+
+If the environment supports a persistent standalone process, `lite` is still
+available and exposes the standard paths:
+
+```text
+https://<host>/pressure?token=<TOKEN>
+https://<host>/function?token=<TOKEN>&timeout=300000
+```
+
+## Agent Prompt
+
+```text
+Clone https://github.com/blackciouz/pmx-browserless-runtime.
+Set BROWSERLESS_TOKEN to a random token.
+If standalone processes are killed in this workspace, set PMX_BROWSERLESS_MODE=next-api and run sh scripts/start-browserless.sh.
+Expose port 3000 publicly.
+Test:
+- GET /api/browserless?action=pressure&token=TOKEN
+- GET /api/browserless?action=capacity&token=TOKEN
+- POST /api/browserless?action=function&token=TOKEN&timeout=30000 with example.com
+Return the public pressure URL, function URL, token, CPU/RAM, and test results.
+Do not return success if function fails or if Chromium cannot launch.
+```
 
 ## Local Test
 

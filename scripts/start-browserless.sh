@@ -14,6 +14,10 @@ export PMX_BROWSERLESS_MODE="${PMX_BROWSERLESS_MODE:-auto}"
 
 echo "Starting PMX Browserless runtime on port ${PORT} with CONCURRENT=${CONCURRENT}, QUEUED=${QUEUED}, mode=${PMX_BROWSERLESS_MODE}"
 
+if [ "${PMX_BROWSERLESS_MODE}" = "next-api" ]; then
+  exec npm run next-api
+fi
+
 if [ "${PMX_BROWSERLESS_MODE}" != "lite" ] && command -v docker >/dev/null 2>&1; then
   docker rm -f pmx-browserless >/dev/null 2>&1 || true
   exec docker run --rm --name pmx-browserless \
