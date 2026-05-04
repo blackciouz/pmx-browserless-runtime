@@ -1,0 +1,13 @@
+services:
+  browserless:
+    image: ghcr.io/browserless/chromium:latest
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      TOKEN: "${TOKEN:-change-me}"
+      CONCURRENT: "${CONCURRENT:-1}"
+      QUEUED: "${QUEUED:-20}"
+      TIMEOUT: "${TIMEOUT:-300000}"
+      MAX_MEMORY_PERCENT: "${MAX_MEMORY_PERCENT:-95}"
+      MAX_CPU_PERCENT: "${MAX_CPU_PERCENT:-95}"
+
