@@ -2,7 +2,10 @@
   "name": "PMX Browserless Runtime",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    }
   },
   "forwardPorts": [3000],
   "portsAttributes": {
@@ -14,12 +17,14 @@
   },
   "containerEnv": {
     "PORT": "3000",
+    "BROWSERLESS_TOKEN": "${localEnv:BROWSERLESS_TOKEN:${localEnv:TOKEN:change-me}}",
+    "TOKEN": "${localEnv:BROWSERLESS_TOKEN:${localEnv:TOKEN:change-me}}",
     "CONCURRENT": "${localEnv:CONCURRENT:1}",
     "QUEUED": "${localEnv:QUEUED:20}",
     "TIMEOUT": "${localEnv:TIMEOUT:300000}",
     "MAX_MEMORY_PERCENT": "${localEnv:MAX_MEMORY_PERCENT:95}",
-    "MAX_CPU_PERCENT": "${localEnv:MAX_CPU_PERCENT:95}"
+    "MAX_CPU_PERCENT": "${localEnv:MAX_CPU_PERCENT:95}",
+    "PMX_BROWSERLESS_MODE": "${localEnv:PMX_BROWSERLESS_MODE:auto}"
   },
   "postStartCommand": "nohup sh scripts/start-browserless.sh > /tmp/pmx-browserless.log 2>&1 &"
 }
-

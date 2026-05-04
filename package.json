@@ -1,0 +1,14 @@
+{
+  "name": "pmx-browserless-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PMX Browserless runtime with Docker Browserless and Playwright-lite fallback.",
+  "scripts": {
+    "start": "node pmx-browserless-lite.cjs",
+    "lite": "node pmx-browserless-lite.cjs",
+    "probe": "node scripts/probe-runtime.cjs"
+  },
+  "dependencies": {
+    "playwright": "^1.57.0"
+  }
+}
