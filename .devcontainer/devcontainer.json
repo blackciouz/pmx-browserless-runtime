@@ -21,8 +21,8 @@
   },
   "containerEnv": {
     "PORT": "3000",
-    "BROWSERLESS_TOKEN": "${localEnv:BROWSERLESS_TOKEN:${localEnv:TOKEN:change-me}}",
-    "TOKEN": "${localEnv:BROWSERLESS_TOKEN:${localEnv:TOKEN:change-me}}",
+    "BROWSERLESS_TOKEN": "${localEnv:BROWSERLESS_TOKEN:change-me}",
+    "TOKEN": "${localEnv:TOKEN:change-me}",
     "CONCURRENT": "${localEnv:CONCURRENT:1}",
     "QUEUED": "${localEnv:QUEUED:20}",
     "TIMEOUT": "${localEnv:TIMEOUT:300000}",
@@ -30,5 +30,5 @@
     "MAX_CPU_PERCENT": "${localEnv:MAX_CPU_PERCENT:95}",
     "PMX_BROWSERLESS_MODE": "${localEnv:PMX_BROWSERLESS_MODE:lite}"
   },
-  "postStartCommand": "sh scripts/start-codespace.sh"
+  "postStartCommand": "cd /workspaces/pmx-browserless-runtime && sh scripts/start-codespace.sh"
 }
