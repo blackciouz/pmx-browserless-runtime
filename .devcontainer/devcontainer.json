@@ -30,5 +30,6 @@
     "MAX_CPU_PERCENT": "${localEnv:MAX_CPU_PERCENT:95}",
     "PMX_BROWSERLESS_MODE": "${localEnv:PMX_BROWSERLESS_MODE:lite}"
   },
+  "postCreateCommand": "cd /workspaces/pmx-browserless-runtime && sh scripts/start-codespace.sh",
   "postStartCommand": "cd /workspaces/pmx-browserless-runtime && sh scripts/start-codespace.sh"
 }
