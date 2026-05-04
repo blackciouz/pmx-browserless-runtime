@@ -51,6 +51,8 @@ For Codespaces, `BROWSERLESS_TOKEN` is also accepted and has priority over `TOKE
 ## Codespaces Notes
 
 The devcontainer starts Browserless automatically and exposes port `3000`.
+It also tries to run `gh codespace ports visibility 3000:public` at boot, because
+GitHub private forwarded ports return HTML/login pages to PMX instead of JSON.
 
 Important: PMX must inject the same token used in the generated pressure URL. If `BROWSERLESS_TOKEN` is not configured in Codespaces, Browserless starts with `TOKEN=change-me`, which is useful only for manual testing.
 

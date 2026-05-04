@@ -5,7 +5,8 @@
     "ghcr.io/devcontainers/features/docker-in-docker:2": {},
     "ghcr.io/devcontainers/features/node:1": {
       "version": "20"
-    }
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
   },
   "forwardPorts": [3000],
   "portsAttributes": {
@@ -26,5 +27,5 @@
     "MAX_CPU_PERCENT": "${localEnv:MAX_CPU_PERCENT:95}",
     "PMX_BROWSERLESS_MODE": "${localEnv:PMX_BROWSERLESS_MODE:auto}"
   },
-  "postStartCommand": "nohup sh scripts/start-browserless.sh > /tmp/pmx-browserless.log 2>&1 &"
+  "postStartCommand": "sh scripts/start-codespace.sh"
 }
