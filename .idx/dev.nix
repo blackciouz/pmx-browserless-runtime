@@ -10,7 +10,7 @@
 
   env = {
     PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH = "${pkgs.chromium}/bin/chromium";
-    PMX_BROWSERLESS_MODE = "lite";
+    PMX_BROWSERLESS_MODE = "next-api";
     PORT = "3000";
     CONCURRENT = "1";
     QUEUED = "20";
@@ -21,7 +21,7 @@
     enable = true;
     previews = {
       browserless = {
-        command = [ "sh" "scripts/start-browserless.sh" ];
+        command = [ "sh" "scripts/firebase-studio-start.sh" ];
         manager = "web";
         env = {
           PORT = "$PORT";

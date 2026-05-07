@@ -6,9 +6,11 @@
   "scripts": {
     "start": "node pmx-browserless-lite.cjs",
     "lite": "node pmx-browserless-lite.cjs",
-    "next-api": "next dev -H 0.0.0.0 -p ${PORT:-3000}",
+    "next-api": "node scripts/next-api-server.cjs",
     "next-build": "next build",
     "next-start": "next start -H 0.0.0.0 -p ${PORT:-3000}",
+    "firebase-studio": "sh scripts/firebase-studio-start.sh",
+    "firebase-test": "sh scripts/firebase-studio-test.sh",
     "probe": "node scripts/probe-runtime.cjs"
   },
   "dependencies": {

@@ -74,46 +74,44 @@ PMX can use this repository as a stable template/reference. The API currently st
 
 ## Firebase Studio Notes
 
-Firebase Studio/Z.ai can use this repo as a Next.js workspace:
+Firebase Studio/Z.ai should use the Next.js API route mode. Do not start a
+standalone Node server in these environments: it can be killed after a short
+idle window. The direct `/pressure` and `/chromium/function` paths are rewritten
+to `/api/browserless`, so PMX can use a normal pressure URL.
+
+From a blank Firebase Studio workspace terminal:
 
 ```bash
-export BROWSERLESS_TOKEN=<token>
-export CONCURRENT=1
-export QUEUED=20
-export TIMEOUT=300000
-export PMX_BROWSERLESS_MODE=next-api
-sh scripts/start-browserless.sh
+git clone https://github.com/blackciouz/pmx-browserless-runtime.git
+cd pmx-browserless-runtime
+sh scripts/firebase-studio-start.sh
 ```
 
-Then expose port `3000` publicly and register these URLs in PMX:
+In a second terminal, test local compatibility:
 
-```text
-Pressure URL:
-https://<host>/api/browserless?action=pressure&token=<TOKEN>
-
-Advanced function URL:
-https://<host>/api/browserless?action=function&token={token}&timeout={timeout}
+```bash
+cd pmx-browserless-runtime
+sh scripts/firebase-studio-test.sh
 ```
 
-If the environment supports a persistent standalone process, `lite` is still
-available and exposes the standard paths:
+Then expose port `3000` publicly in Firebase Studio and register this URL in PMX:
 
 ```text
-https://<host>/pressure?token=<TOKEN>
-https://<host>/function?token=<TOKEN>&timeout=300000
+https://<public-preview-host>/pressure?token=<TOKEN>
 ```
 
 ## Agent Prompt
 
 ```text
-Clone https://github.com/blackciouz/pmx-browserless-runtime.
-Set BROWSERLESS_TOKEN to a random token.
-If standalone processes are killed in this workspace, set PMX_BROWSERLESS_MODE=next-api and run sh scripts/start-browserless.sh.
-Expose port 3000 publicly.
+Clone exactly https://github.com/blackciouz/pmx-browserless-runtime.
+Do not clone forks or renamed repositories.
+Run: cd pmx-browserless-runtime && sh scripts/firebase-studio-start.sh
+Open a second terminal and run: cd pmx-browserless-runtime && sh scripts/firebase-studio-test.sh
+Expose port 3000 publicly in Firebase Studio.
 Test:
-- GET /api/browserless?action=pressure&token=TOKEN
-- GET /api/browserless?action=capacity&token=TOKEN
-- POST /api/browserless?action=function&token=TOKEN&timeout=30000 with example.com
+- GET /pressure?token=TOKEN
+- GET /capacity?token=TOKEN
+- POST /chromium/function?token=TOKEN&timeout=30000 with example.com
 Return the public pressure URL, function URL, token, CPU/RAM, and test results.
 Do not return success if function fails or if Chromium cannot launch.
 ```
