@@ -19,6 +19,12 @@ if [ "${PMX_BROWSERLESS_MODE}" = "next-api" ]; then
     echo "Installing Next API runtime dependencies..."
     npm install --omit=dev --no-audit --no-fund
   fi
+  if [ -z "${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}" ]; then
+    echo "Ensuring Playwright Chromium is installed for Next API runtime..."
+    npx playwright install --with-deps chromium >/tmp/pmx-playwright-install.log 2>&1 \
+      || npx playwright install chromium >>/tmp/pmx-playwright-install.log 2>&1 \
+      || true
+  fi
   exec npm run next-api
 fi
 

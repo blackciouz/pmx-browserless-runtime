@@ -94,6 +94,14 @@ cd pmx-browserless-runtime
 sh scripts/firebase-studio-test.sh
 ```
 
+If the function test says that the Chromium executable is missing, run:
+
+```bash
+cd pmx-browserless-runtime
+npx playwright install chromium
+sh scripts/firebase-studio-test.sh
+```
+
 Then expose port `3000` publicly in Firebase Studio and register this URL in PMX:
 
 ```text
