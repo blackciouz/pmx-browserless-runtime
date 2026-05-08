@@ -12,7 +12,7 @@
     PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH = "${pkgs.chromium}/bin/chromium";
     PMX_BROWSERLESS_MODE = "next-api";
     PORT = "3000";
-    CONCURRENT = "1";
+    CONCURRENT = "10";
     QUEUED = "20";
     TIMEOUT = "300000";
   };
