@@ -15,7 +15,7 @@ export PMX_BROWSERLESS_MODE="${PMX_BROWSERLESS_MODE:-auto}"
 echo "Starting PMX Browserless runtime on port ${PORT} with CONCURRENT=${CONCURRENT}, QUEUED=${QUEUED}, mode=${PMX_BROWSERLESS_MODE}"
 
 if [ "${PMX_BROWSERLESS_MODE}" = "next-api" ]; then
-  if [ ! -d node_modules/next ]; then
+  if [ ! -f node_modules/next/dist/bin/next ] || [ ! -d node_modules/playwright ]; then
     echo "Installing Next API runtime dependencies..."
     npm install --no-audit --no-fund
   fi

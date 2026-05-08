@@ -3,6 +3,15 @@ const path = require('node:path');
 
 const port = String(process.env.PORT || '3000');
 const nextBin = path.join(process.cwd(), 'node_modules', 'next', 'dist', 'bin', 'next');
+
+try {
+  require('node:fs').accessSync(nextBin);
+} catch {
+  console.error(`Missing local Next.js binary: ${nextBin}`);
+  console.error('Run: npm install --no-audit --no-fund');
+  process.exit(1);
+}
+
 const child = spawn(process.execPath, [nextBin, 'dev', '-H', '0.0.0.0', '-p', port], {
   cwd: process.cwd(),
   env: process.env,
