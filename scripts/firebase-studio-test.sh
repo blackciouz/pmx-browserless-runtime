@@ -30,18 +30,33 @@ LOCAL_PRESSURE="$(pmx_local_pressure_url)"
 echo "Testing PMX Browserless runtime on ${BASE}"
 echo
 echo "PRESSURE"
-curl -sS "${BASE}/pressure?token=${TOKEN}" | tee "$PRESSURE_FILE"
+if ! curl -fsS "${BASE}/pressure?token=${TOKEN}" | tee "$PRESSURE_FILE"; then
+  echo
+  echo "RESULTAT: KO - aucun serveur ne repond sur ${BASE}."
+  echo "CAUSE: le process Next/Browserless n'est pas lance ou il s'est arrete."
+  echo "FIX: garde le premier terminal ouvert avec:"
+  echo "sh scripts/firebase-studio-start.sh 2>&1 | tee /tmp/pmx-browserless-live.log"
+  exit 2
+fi
 echo
 echo
 echo "CAPACITY"
-curl -sS "${BASE}/capacity?token=${TOKEN}" | tee "$CAPACITY_FILE"
+if ! curl -fsS "${BASE}/capacity?token=${TOKEN}" | tee "$CAPACITY_FILE"; then
+  echo
+  echo "RESULTAT: KO - /capacity ne repond pas."
+  exit 2
+fi
 echo
 echo
 echo "FUNCTION"
-curl -sS -X POST "${BASE}/chromium/function?token=${TOKEN}&timeout=30000" \
+if ! curl -fsS -X POST "${BASE}/chromium/function?token=${TOKEN}&timeout=30000" \
   -H "Content-Type: application/json" \
   --data '{"code":"async ({ page }) => { await page.goto(\"https://example.com\", { waitUntil: \"domcontentloaded\" }); return { title: await page.title(), url: page.url() }; }","context":{}}' \
-  | tee "$FUNCTION_FILE"
+  | tee "$FUNCTION_FILE"; then
+  echo
+  echo "RESULTAT: KO - /chromium/function ne repond pas correctement."
+  exit 2
+fi
 echo
 echo
 echo "========================================"

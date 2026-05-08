@@ -27,6 +27,7 @@ process.on('SIGINT', () => forward('SIGINT'));
 process.on('SIGTERM', () => forward('SIGTERM'));
 
 child.on('exit', (code, signal) => {
+  console.error(`[pmx-browserless] Next dev server exited code=${code ?? ''} signal=${signal ?? ''}`);
   if (signal) process.kill(process.pid, signal);
   process.exit(code || 0);
 });
