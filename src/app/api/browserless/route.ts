@@ -10,6 +10,7 @@ const CONCURRENT = positiveInt(process.env.CONCURRENT, 1);
 const QUEUED = positiveInt(process.env.QUEUED, 20);
 const DEFAULT_TIMEOUT = positiveInt(process.env.DEFAULT_TIMEOUT || process.env.TIMEOUT, 300_000);
 const MAX_BODY_BYTES = positiveInt(process.env.MAX_BODY_BYTES, 20_000_000);
+const REUSE_BROWSER = ['1', 'true', 'yes', 'on'].includes(String(process.env.PMX_REUSE_BROWSER || '').toLowerCase());
 
 let active = 0;
 let rejected = 0;
@@ -171,7 +172,7 @@ async function runFunction(code: unknown, context: unknown, timeoutMs: number): 
   const fn = compile(code);
   if (typeof fn !== 'function') throw new Error('Browserless code did not export a function');
 
-  const browser = await getBrowser();
+  const browser = REUSE_BROWSER ? await getBrowser() : await launchBrowser();
   let browserContext: BrowserContext | undefined;
 
   const work = (async () => {
@@ -187,6 +188,7 @@ async function runFunction(code: unknown, context: unknown, timeoutMs: number): 
     return await Promise.race([work, timeoutPromise(timeoutMs)]);
   } finally {
     if (browserContext) await browserContext.close().catch(() => undefined);
+    if (!REUSE_BROWSER) await browser.close().catch(() => undefined);
   }
 }
 
@@ -195,35 +197,7 @@ async function getBrowser(): Promise<Browser> {
   if (launchPromise) return launchPromise;
 
   launchPromise = (async () => {
-    const { chromium } = await import('playwright');
-    const browser = await chromium.launch({
-      executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || process.env.CHROMIUM_PATH || undefined,
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-setuid-sandbox',
-        '--no-zygote',
-        '--no-first-run',
-        '--no-default-browser-check',
-        '--disable-background-networking',
-        '--disable-background-timer-throttling',
-        '--disable-client-side-phishing-detection',
-        '--disable-component-update',
-        '--disable-default-apps',
-        '--disable-extensions',
-        '--disable-hang-monitor',
-        '--disable-popup-blocking',
-        '--disable-renderer-backgrounding',
-        '--disable-sync',
-        '--metrics-recording-only',
-        '--mute-audio',
-        '--hide-scrollbars',
-        '--renderer-process-limit=2',
-        '--disable-features=IsolateOrigins,site-per-process,Translate,BackForwardCache,AcceptCHFrame,MediaRouter,OptimizationHints',
-      ],
-    });
+    const browser = await launchBrowser();
     browser.on('disconnected', () => {
       if (sharedBrowser === browser) sharedBrowser = null;
     });
@@ -236,6 +210,29 @@ async function getBrowser(): Promise<Browser> {
   } finally {
     launchPromise = null;
   }
+}
+
+async function launchBrowser(): Promise<Browser> {
+  const { chromium } = await import('playwright');
+  return chromium.launch({
+    executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || process.env.CHROMIUM_PATH || undefined,
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-setuid-sandbox',
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-background-networking',
+      '--disable-component-update',
+      '--disable-default-apps',
+      '--disable-extensions',
+      '--disable-sync',
+      '--metrics-recording-only',
+      '--mute-audio',
+    ],
+  });
 }
 
 function pressurePayload() {
@@ -260,6 +257,7 @@ function pressurePayload() {
       hostMemory: memory,
       mode: 'next-api-playwright-lite',
       cdp: false,
+      reuseBrowser: REUSE_BROWSER,
     },
   };
 }
@@ -269,6 +267,7 @@ function capacityPayload() {
     ok: true,
     mode: 'next-api-playwright-lite',
     cdp: false,
+    reuseBrowser: REUSE_BROWSER,
     cores: os.cpus().length,
     totalMemoryGb: +(os.totalmem() / 1024 / 1024 / 1024).toFixed(1),
     freeMemoryGb: +(os.freemem() / 1024 / 1024 / 1024).toFixed(1),

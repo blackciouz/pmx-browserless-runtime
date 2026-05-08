@@ -13,6 +13,7 @@
     PMX_BROWSERLESS_MODE = "next-api";
     PMX_NEXT_SERVER_MODE = "start";
     PMX_NEXT_FORCE_BUILD = "1";
+    PMX_REUSE_BROWSER = "0";
     PORT = "3000";
     CONCURRENT = "2";
     QUEUED = "20";

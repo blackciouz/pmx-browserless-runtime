@@ -87,6 +87,11 @@ Firebase Studio starts the Next API runtime in production mode by default
 (`next build`, then `next start`). This avoids Turbopack/dev-server exits in
 fresh workspaces and prevents stale builds after a repo update.
 
+The Next API runtime launches an isolated Chromium per request by default. This
+matches the Anyscale runner behavior and avoids cross-site crashes leaking
+between qualification leads. Set `PMX_REUSE_BROWSER=1` only when speed matters
+more than isolation.
+
 From a blank Firebase Studio workspace terminal:
 
 ```bash
