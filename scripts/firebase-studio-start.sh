@@ -36,9 +36,34 @@ export CONCURRENT="${CONCURRENT:-1}"
 export QUEUED="${QUEUED:-20}"
 export TIMEOUT="${TIMEOUT:-300000}"
 export DEFAULT_TIMEOUT="${DEFAULT_TIMEOUT:-${TIMEOUT}}"
+export PMX_BROWSERLESS_FIREBASE_STUDIO=1
+
+if [ -z "${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}" ] || [ ! -x "${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}" ]; then
+  for candidate in chromium chromium-browser google-chrome chrome; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$(command -v "$candidate")"
+      break
+    fi
+  done
+fi
+
+if [ -z "${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}" ] || [ ! -x "${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}" ]; then
+  WORKSPACE_ROOT="$(CDPATH= cd -- "$ROOT/.." && pwd)"
+  if [ -f "$ROOT/.idx/dev.nix" ]; then
+    mkdir -p "$WORKSPACE_ROOT/.idx"
+    cp "$ROOT/.idx/dev.nix" "$WORKSPACE_ROOT/.idx/dev.nix"
+  fi
+  echo "FIREBASE_SETUP_INCOMPLETE=1"
+  echo "System Chromium is not available in this Firebase Studio shell."
+  echo "I installed .idx/dev.nix at: $WORKSPACE_ROOT/.idx/dev.nix"
+  echo "Hard rebuild/restart Firebase Studio, then run:"
+  echo "cd $(basename "$ROOT") && sh scripts/firebase-studio-start.sh"
+  exit 20
+fi
 
 echo "PMX Browserless Firebase Studio runtime"
 echo "TOKEN=${BROWSERLESS_TOKEN}"
+echo "CHROMIUM=${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}"
 LOCAL_PRESSURE="$(pmx_local_pressure_url)"
 echo "LOCAL_PRESSURE=${LOCAL_PRESSURE}"
 echo "LOCAL_CAPACITY=http://localhost:${PORT}/capacity?token=${BROWSERLESS_TOKEN}"

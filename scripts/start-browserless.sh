@@ -19,6 +19,19 @@ if [ "${PMX_BROWSERLESS_MODE}" = "next-api" ]; then
     echo "Installing Next API runtime dependencies..."
     npm install --no-audit --no-fund
   fi
+  if [ -z "${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}" ] || [ ! -x "${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}" ]; then
+    for candidate in chromium chromium-browser google-chrome chrome; do
+      if command -v "$candidate" >/dev/null 2>&1; then
+        export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$(command -v "$candidate")"
+        break
+      fi
+    done
+  fi
+  if [ "${PMX_BROWSERLESS_FIREBASE_STUDIO:-}" = "1" ] && { [ -z "${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}" ] || [ ! -x "${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}" ]; }; then
+    echo "Firebase Studio requires system Chromium from .idx/dev.nix."
+    echo "Run scripts/firebase-studio-bootstrap.sh from the workspace root, then hard rebuild/restart Firebase Studio."
+    exit 20
+  fi
   if [ -z "${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}" ]; then
     echo "Ensuring Playwright Chromium is installed for Next API runtime..."
     npx playwright install --with-deps chromium >/tmp/pmx-playwright-install.log 2>&1 \
