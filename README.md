@@ -82,10 +82,11 @@ to `/api/browserless`, so PMX can use a normal pressure URL.
 From a blank Firebase Studio workspace terminal:
 
 ```bash
-git clone https://github.com/blackciouz/pmx-browserless-runtime.git
-cd pmx-browserless-runtime
-sh scripts/firebase-studio-start.sh
+curl -fsSL https://raw.githubusercontent.com/blackciouz/pmx-browserless-runtime/master/scripts/firebase-studio-bootstrap.sh | sh
 ```
+
+If the script asks for a Firebase Studio rebuild/hard restart, do it once. This
+is required when the workspace root did not already load `.idx/dev.nix`.
 
 In a second terminal, test local compatibility:
 

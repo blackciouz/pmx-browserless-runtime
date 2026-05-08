@@ -21,7 +21,7 @@
     enable = true;
     previews = {
       browserless = {
-        command = [ "sh" "scripts/firebase-studio-start.sh" ];
+        command = [ "sh" "pmx-browserless-runtime/scripts/firebase-studio-start.sh" ];
         manager = "web";
         env = {
           PORT = "$PORT";

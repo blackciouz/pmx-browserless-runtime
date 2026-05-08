@@ -72,5 +72,12 @@ if grep -q 'Example Domain' "$FUNCTION_FILE"; then
 else
   echo
   echo "RESULTAT: KO - FUNCTION did not return Example Domain. Do not add this server to PMX yet."
+  if grep -q 'libglib-2.0.so.0' "$FUNCTION_FILE" || grep -q 'shared libraries' "$FUNCTION_FILE"; then
+    echo
+    echo "CAUSE PROBABLE: Firebase Studio did not load the root .idx/dev.nix."
+    echo "FIX: run from workspace root:"
+    echo "sh pmx-browserless-runtime/scripts/firebase-studio-bootstrap.sh"
+    echo "Then rebuild/hard restart Firebase Studio once, restart the server, and retest."
+  fi
   exit 1
 fi
