@@ -83,6 +83,10 @@ Firebase Studio defaults to `CONCURRENT=2`. This keeps the runtime useful withou
 overloading small Firebase Studio workspaces. Increase it in `.env.firebase-studio`
 only after a real `/chromium/function` test stays stable.
 
+Firebase Studio starts the Next API runtime in production mode by default
+(`next build`, then `next start`). This avoids Turbopack/dev-server exits in
+fresh workspaces and prevents stale builds after a repo update.
+
 From a blank Firebase Studio workspace terminal:
 
 ```bash

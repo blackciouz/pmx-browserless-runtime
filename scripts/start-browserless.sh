@@ -11,8 +11,9 @@ export DEFAULT_TIMEOUT="${DEFAULT_TIMEOUT:-${TIMEOUT}}"
 export MAX_MEMORY_PERCENT="${MAX_MEMORY_PERCENT:-95}"
 export MAX_CPU_PERCENT="${MAX_CPU_PERCENT:-95}"
 export PMX_BROWSERLESS_MODE="${PMX_BROWSERLESS_MODE:-auto}"
+export PMX_NEXT_SERVER_MODE="${PMX_NEXT_SERVER_MODE:-dev}"
 
-echo "Starting PMX Browserless runtime on port ${PORT} with CONCURRENT=${CONCURRENT}, QUEUED=${QUEUED}, mode=${PMX_BROWSERLESS_MODE}"
+echo "Starting PMX Browserless runtime on port ${PORT} with CONCURRENT=${CONCURRENT}, QUEUED=${QUEUED}, mode=${PMX_BROWSERLESS_MODE}, next=${PMX_NEXT_SERVER_MODE}"
 
 if [ "${PMX_BROWSERLESS_MODE}" = "next-api" ]; then
   if [ ! -f node_modules/next/dist/bin/next ] || [ ! -d node_modules/playwright ]; then

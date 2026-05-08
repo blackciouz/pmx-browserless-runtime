@@ -11,8 +11,10 @@
   env = {
     PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH = "${pkgs.chromium}/bin/chromium";
     PMX_BROWSERLESS_MODE = "next-api";
+    PMX_NEXT_SERVER_MODE = "start";
+    PMX_NEXT_FORCE_BUILD = "1";
     PORT = "3000";
-    CONCURRENT = "10";
+    CONCURRENT = "2";
     QUEUED = "20";
     TIMEOUT = "300000";
   };
