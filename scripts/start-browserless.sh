@@ -15,10 +15,36 @@ export PMX_NEXT_SERVER_MODE="${PMX_NEXT_SERVER_MODE:-dev}"
 
 echo "Starting PMX Browserless runtime on port ${PORT} with CONCURRENT=${CONCURRENT}, QUEUED=${QUEUED}, mode=${PMX_BROWSERLESS_MODE}, next=${PMX_NEXT_SERVER_MODE}"
 
+pmx_next_api_deps_ready() {
+  [ -f node_modules/next/dist/bin/next ] \
+    && [ -f node_modules/next/dist/server/require-hook.js ] \
+    && [ -f node_modules/react/package.json ] \
+    && [ -f node_modules/react-dom/package.json ] \
+    && [ -d node_modules/playwright ]
+}
+
+pmx_install_next_api_deps() {
+  echo "Installing/repairing Next API runtime dependencies..."
+  npm install --no-audit --no-fund
+
+  if pmx_next_api_deps_ready; then
+    return 0
+  fi
+
+  echo "Detected incomplete node_modules. Reinstalling damaged runtime packages..."
+  rm -rf node_modules/next node_modules/react node_modules/react-dom node_modules/playwright
+  npm install --no-audit --no-fund
+
+  if ! pmx_next_api_deps_ready; then
+    echo "Next API runtime dependencies are still incomplete after reinstall."
+    echo "Delete node_modules manually and rerun: sh scripts/firebase-studio-start.sh"
+    exit 1
+  fi
+}
+
 if [ "${PMX_BROWSERLESS_MODE}" = "next-api" ]; then
-  if [ ! -f node_modules/next/dist/bin/next ] || [ ! -d node_modules/playwright ]; then
-    echo "Installing Next API runtime dependencies..."
-    npm install --no-audit --no-fund
+  if ! pmx_next_api_deps_ready; then
+    pmx_install_next_api_deps
   fi
   if [ -z "${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}" ] || [ ! -x "${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}" ]; then
     for candidate in chromium chromium-browser google-chrome chrome; do

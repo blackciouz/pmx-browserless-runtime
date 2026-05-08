@@ -5,13 +5,18 @@ const path = require('node:path');
 const port = String(process.env.PORT || '3000');
 const serverMode = String(process.env.PMX_NEXT_SERVER_MODE || (process.env.PMX_BROWSERLESS_FIREBASE_STUDIO === '1' ? 'start' : 'dev'));
 const nextBin = path.join(process.cwd(), 'node_modules', 'next', 'dist', 'bin', 'next');
+const nextRequireHook = path.join(process.cwd(), 'node_modules', 'next', 'dist', 'server', 'require-hook.js');
 const buildIdFile = path.join(process.cwd(), '.next', 'BUILD_ID');
 
 try {
   fs.accessSync(nextBin);
+  fs.accessSync(nextRequireHook);
 } catch {
-  console.error(`Missing local Next.js binary: ${nextBin}`);
+  console.error('Local Next.js install is missing required files.');
+  console.error(`Checked: ${nextBin}`);
+  console.error(`Checked: ${nextRequireHook}`);
   console.error('Run: npm install --no-audit --no-fund');
+  console.error('If it still fails: rm -rf node_modules/next node_modules/react node_modules/react-dom node_modules/playwright && npm install --no-audit --no-fund');
   process.exit(1);
 }
 
