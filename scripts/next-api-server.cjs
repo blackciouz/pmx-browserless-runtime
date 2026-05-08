@@ -1,12 +1,13 @@
 const { spawn } = require('node:child_process');
+const path = require('node:path');
 
 const port = String(process.env.PORT || '3000');
-const command = 'npx';
-const child = spawn(command, ['next', 'dev', '-H', '0.0.0.0', '-p', port], {
+const nextBin = path.join(process.cwd(), 'node_modules', 'next', 'dist', 'bin', 'next');
+const child = spawn(process.execPath, [nextBin, 'dev', '-H', '0.0.0.0', '-p', port], {
   cwd: process.cwd(),
   env: process.env,
   stdio: 'inherit',
-  shell: process.platform === 'win32',
+  shell: false,
 });
 
 const forward = signal => {

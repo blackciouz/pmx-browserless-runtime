@@ -17,7 +17,7 @@ echo "Starting PMX Browserless runtime on port ${PORT} with CONCURRENT=${CONCURR
 if [ "${PMX_BROWSERLESS_MODE}" = "next-api" ]; then
   if [ ! -d node_modules/next ]; then
     echo "Installing Next API runtime dependencies..."
-    npm install --omit=dev --no-audit --no-fund
+    npm install --no-audit --no-fund
   fi
   if [ -z "${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}" ]; then
     echo "Ensuring Playwright Chromium is installed for Next API runtime..."
@@ -48,7 +48,7 @@ fi
 
 if [ ! -d node_modules/playwright ]; then
   echo "Installing Playwright fallback dependencies..."
-  npm install --omit=dev --no-audit --no-fund
+  npm install --no-audit --no-fund
 fi
 
 if [ -z "${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}" ]; then
