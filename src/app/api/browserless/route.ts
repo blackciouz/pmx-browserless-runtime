@@ -1,5 +1,6 @@
 import os from 'node:os';
 import { NextRequest, NextResponse } from 'next/server';
+import type { Browser, BrowserContext } from 'playwright';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,6 +14,8 @@ const MAX_BODY_BYTES = positiveInt(process.env.MAX_BODY_BYTES, 20_000_000);
 let active = 0;
 let rejected = 0;
 const waiters: Array<{ resolve: (value: boolean) => void; timer: NodeJS.Timeout }> = [];
+let sharedBrowser: Browser | null = null;
+let launchPromise: Promise<Browser> | null = null;
 
 function positiveInt(value: unknown, fallback: number): number {
   const parsed = Number(value);
@@ -168,12 +171,32 @@ async function runFunction(code: unknown, context: unknown, timeoutMs: number): 
   const fn = compile(code);
   if (typeof fn !== 'function') throw new Error('Browserless code did not export a function');
 
-  const playwright = await import('playwright');
-  const chromium = playwright.chromium;
-  let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+  const browser = await getBrowser();
+  let browserContext: BrowserContext | undefined;
 
   const work = (async () => {
-    browser = await chromium.launch({
+    browserContext = await browser.newContext({
+      ignoreHTTPSErrors: true,
+      viewport: { width: 1280, height: 900 },
+    });
+    const page = puppeteerCompatiblePage(await browserContext.newPage());
+    return fn({ page, context: context || {}, browser });
+  })();
+
+  try {
+    return await Promise.race([work, timeoutPromise(timeoutMs)]);
+  } finally {
+    if (browserContext) await browserContext.close().catch(() => undefined);
+  }
+}
+
+async function getBrowser(): Promise<Browser> {
+  if (sharedBrowser?.isConnected()) return sharedBrowser;
+  if (launchPromise) return launchPromise;
+
+  launchPromise = (async () => {
+    const { chromium } = await import('playwright');
+    const browser = await chromium.launch({
       executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || process.env.CHROMIUM_PATH || undefined,
       headless: true,
       args: [
@@ -181,16 +204,37 @@ async function runFunction(code: unknown, context: unknown, timeoutMs: number): 
         '--disable-dev-shm-usage',
         '--disable-gpu',
         '--disable-setuid-sandbox',
+        '--no-zygote',
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--disable-background-networking',
+        '--disable-background-timer-throttling',
+        '--disable-client-side-phishing-detection',
+        '--disable-component-update',
+        '--disable-default-apps',
+        '--disable-extensions',
+        '--disable-hang-monitor',
+        '--disable-popup-blocking',
+        '--disable-renderer-backgrounding',
+        '--disable-sync',
+        '--metrics-recording-only',
+        '--mute-audio',
+        '--hide-scrollbars',
+        '--renderer-process-limit=2',
+        '--disable-features=IsolateOrigins,site-per-process,Translate,BackForwardCache,AcceptCHFrame,MediaRouter,OptimizationHints',
       ],
     });
-    const page = puppeteerCompatiblePage(await browser.newPage());
-    return fn({ page, context: context || {}, browser });
+    browser.on('disconnected', () => {
+      if (sharedBrowser === browser) sharedBrowser = null;
+    });
+    sharedBrowser = browser;
+    return browser;
   })();
 
   try {
-    return await Promise.race([work, timeoutPromise(timeoutMs)]);
+    return await launchPromise;
   } finally {
-    if (browser) await browser.close().catch(() => undefined);
+    launchPromise = null;
   }
 }
 
