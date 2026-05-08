@@ -4,6 +4,9 @@ set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$ROOT"
 
+# shellcheck disable=SC1091
+. "./scripts/firebase-studio-utils.sh"
+
 ENV_FILE=".env.firebase-studio"
 if [ ! -f "$ENV_FILE" ]; then
   echo "Missing $ENV_FILE. Start once with: sh scripts/firebase-studio-start.sh" >&2
@@ -18,22 +21,56 @@ set +a
 TOKEN="${BROWSERLESS_TOKEN:-${TOKEN:-change-me}}"
 PORT="${PORT:-3000}"
 BASE="http://localhost:${PORT}"
+TMP_DIR="${TMPDIR:-/tmp}"
+PRESSURE_FILE="${TMP_DIR}/pmx-firebase-pressure.json"
+CAPACITY_FILE="${TMP_DIR}/pmx-firebase-capacity.json"
+FUNCTION_FILE="${TMP_DIR}/pmx-firebase-function.json"
+LOCAL_PRESSURE="$(pmx_local_pressure_url)"
 
 echo "Testing PMX Browserless runtime on ${BASE}"
 echo
 echo "PRESSURE"
-curl -sS "${BASE}/pressure?token=${TOKEN}"
+curl -sS "${BASE}/pressure?token=${TOKEN}" | tee "$PRESSURE_FILE"
 echo
 echo
 echo "CAPACITY"
-curl -sS "${BASE}/capacity?token=${TOKEN}"
+curl -sS "${BASE}/capacity?token=${TOKEN}" | tee "$CAPACITY_FILE"
 echo
 echo
 echo "FUNCTION"
 curl -sS -X POST "${BASE}/chromium/function?token=${TOKEN}&timeout=30000" \
   -H "Content-Type: application/json" \
-  --data '{"code":"async ({ page }) => { await page.goto(\"https://example.com\", { waitUntil: \"domcontentloaded\" }); return { title: await page.title(), url: page.url() }; }","context":{}}'
+  --data '{"code":"async ({ page }) => { await page.goto(\"https://example.com\", { waitUntil: \"domcontentloaded\" }); return { title: await page.title(), url: page.url() }; }","context":{}}' \
+  | tee "$FUNCTION_FILE"
 echo
 echo
-echo "If all three calls returned JSON and FUNCTION contains Example Domain, the runtime is PMX-compatible."
-echo "Public pressure URL format: https://PUBLIC_PREVIEW_HOST/pressure?token=${TOKEN}"
+echo "========================================"
+pmx_print_capacity_summary "$CAPACITY_FILE"
+echo
+echo "URL PMX LOCALE"
+echo "$LOCAL_PRESSURE"
+if PUBLIC_PRESSURE="$(pmx_public_pressure_url)"; then
+  echo
+  echo "URL PMX PUBLIQUE DETECTEE"
+  echo "$PUBLIC_PRESSURE"
+  COPY_TARGET="$PUBLIC_PRESSURE"
+else
+  COPY_TARGET="$LOCAL_PRESSURE"
+fi
+
+if pmx_copy_to_clipboard "$COPY_TARGET"; then
+  echo
+  echo "CLIPBOARD: URL pressure copied"
+else
+  echo
+  echo "CLIPBOARD: unavailable here; copy the URL above manually"
+fi
+
+if grep -q 'Example Domain' "$FUNCTION_FILE"; then
+  echo
+  echo "RESULTAT: OK - Runtime compatible PMX."
+else
+  echo
+  echo "RESULTAT: KO - FUNCTION did not return Example Domain. Do not add this server to PMX yet."
+  exit 1
+fi

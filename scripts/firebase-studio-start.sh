@@ -4,6 +4,9 @@ set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$ROOT"
 
+# shellcheck disable=SC1091
+. "./scripts/firebase-studio-utils.sh"
+
 ENV_FILE=".env.firebase-studio"
 
 if [ ! -f "$ENV_FILE" ]; then
@@ -36,11 +39,23 @@ export DEFAULT_TIMEOUT="${DEFAULT_TIMEOUT:-${TIMEOUT}}"
 
 echo "PMX Browserless Firebase Studio runtime"
 echo "TOKEN=${BROWSERLESS_TOKEN}"
-echo "LOCAL_PRESSURE=http://localhost:${PORT}/pressure?token=${BROWSERLESS_TOKEN}"
+LOCAL_PRESSURE="$(pmx_local_pressure_url)"
+echo "LOCAL_PRESSURE=${LOCAL_PRESSURE}"
 echo "LOCAL_CAPACITY=http://localhost:${PORT}/capacity?token=${BROWSERLESS_TOKEN}"
 echo "LOCAL_FUNCTION=http://localhost:${PORT}/chromium/function?token=${BROWSERLESS_TOKEN}&timeout=30000"
-if [ -n "${WEB_HOST:-}" ]; then
-  echo "PUBLIC_PRESSURE=https://${PORT}-${WEB_HOST}/pressure?token=${BROWSERLESS_TOKEN}"
+if PUBLIC_PRESSURE="$(pmx_public_pressure_url)"; then
+  echo "PUBLIC_PRESSURE=${PUBLIC_PRESSURE}"
+  if pmx_copy_to_clipboard "$PUBLIC_PRESSURE"; then
+    echo "CLIPBOARD=PUBLIC_PRESSURE copied"
+  else
+    echo "CLIPBOARD=copy unavailable; copy PUBLIC_PRESSURE manually"
+  fi
+else
+  if pmx_copy_to_clipboard "$LOCAL_PRESSURE"; then
+    echo "CLIPBOARD=LOCAL_PRESSURE copied"
+  else
+    echo "CLIPBOARD=copy unavailable; copy LOCAL_PRESSURE manually"
+  fi
 fi
 
 exec sh scripts/start-browserless.sh
