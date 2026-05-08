@@ -88,6 +88,91 @@ function createTimeout(timeoutMs) {
   });
 }
 
+function puppeteerCompatiblePage(page) {
+  if (typeof page.setUserAgent !== 'function') {
+    page.setUserAgent = async (userAgent) => {
+      if (typeof page.setExtraHTTPHeaders === 'function') {
+        await page.setExtraHTTPHeaders({ 'User-Agent': userAgent });
+      }
+      if (typeof page.addInitScript === 'function') {
+        await page.addInitScript((ua) => {
+          Object.defineProperty(navigator, 'userAgent', { get: () => ua });
+        }, userAgent);
+      }
+    };
+  }
+
+  if (typeof page.setViewport !== 'function') {
+    page.setViewport = async (viewport) => {
+      if (viewport && viewport.width && viewport.height) {
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      }
+    };
+  }
+
+  if (typeof page.evaluateOnNewDocument !== 'function') {
+    page.evaluateOnNewDocument = async (fn, ...args) => {
+      await page.addInitScript(fn, ...args);
+    };
+  }
+
+  if (typeof page.waitForTimeout !== 'function') {
+    page.waitForTimeout = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  const originalGoto = page.goto.bind(page);
+  page.goto = (url, options) => {
+    const waitUntil = options && options.waitUntil;
+    const normalized = waitUntil === 'networkidle2' || waitUntil === 'networkidle0'
+      ? 'networkidle'
+      : waitUntil;
+    return originalGoto(url, { ...(options || {}), waitUntil: normalized });
+  };
+
+  const requestHandlers = [];
+  const originalOn = page.on.bind(page);
+  page.on = (event, handler) => {
+    if (event === 'request') {
+      requestHandlers.push(handler);
+      return page;
+    }
+    return originalOn(event, handler);
+  };
+
+  page.setRequestInterception = async (enabled) => {
+    if (!enabled) return;
+    await page.route('**/*', async (route) => {
+      const request = route.request();
+      let handled = false;
+      const adapter = {
+        url: () => request.url(),
+        method: () => request.method(),
+        resourceType: () => request.resourceType(),
+        headers: () => request.headers(),
+        postData: () => request.postData(),
+        continue: async () => {
+          if (handled) return;
+          handled = true;
+          await route.continue();
+        },
+        abort: async () => {
+          if (handled) return;
+          handled = true;
+          await route.abort();
+        },
+      };
+
+      for (const handler of requestHandlers) {
+        await Promise.resolve(handler(adapter));
+        if (handled) return;
+      }
+      if (!handled) await route.continue();
+    });
+  };
+
+  return page;
+}
+
 async function runFunction(code, context, timeoutMs) {
   const fn = compile(code);
   if (typeof fn !== 'function') throw new Error('Browserless code did not export a function');
@@ -107,7 +192,7 @@ async function runFunction(code, context, timeoutMs) {
         '--disable-setuid-sandbox',
       ],
     });
-    const page = await browser.newPage();
+    const page = puppeteerCompatiblePage(await browser.newPage());
     return fn({ page, context: context || {}, browser });
   })();
 
