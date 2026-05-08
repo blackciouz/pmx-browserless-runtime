@@ -51,7 +51,7 @@ echo
 echo "FUNCTION"
 if ! curl -fsS -X POST "${BASE}/chromium/function?token=${TOKEN}&timeout=30000" \
   -H "Content-Type: application/json" \
-  --data '{"code":"async ({ page }) => { await page.setUserAgent(\"PMX-Firebase-Test/1.0\"); await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 }); await page.evaluateOnNewDocument(() => { window.__pmxInit = true; }); await page.setRequestInterception(true); page.on(\"request\", req => req.continue()); await page.goto(\"https://example.com\", { waitUntil: \"networkidle2\" }); return { title: await page.title(), url: page.url(), ua: await page.evaluate(() => navigator.userAgent), init: await page.evaluate(() => window.__pmxInit === true) }; }","context":{}}' \
+  --data '{"code":"async ({ page }) => { await page.setUserAgent(\"PMX-Firebase-Test/1.0\"); await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 }); await page.evaluateOnNewDocument(() => { window.__pmxInit = true; }); await page.setRequestInterception(true); page.on(\"request\", req => req.continue()); await page.goto(\"https://example.com\", { waitUntil: \"networkidle2\" }); return { title: await page.title(), url: page.url(), ua: await page.evaluate(() => navigator.userAgent), init: await page.evaluate(() => window.__pmxInit === true), multi: await page.evaluate((a, b, c) => a + b + c, 2, 3, 4) }; }","context":{}}' \
   | tee "$FUNCTION_FILE"; then
   echo
   echo "RESULTAT: KO - /chromium/function ne repond pas correctement."
@@ -81,7 +81,7 @@ else
   echo "CLIPBOARD: unavailable here; copy the URL above manually"
 fi
 
-if grep -q 'Example Domain' "$FUNCTION_FILE" && grep -q 'PMX-Firebase-Test' "$FUNCTION_FILE" && grep -q '"init":true' "$FUNCTION_FILE"; then
+if grep -q 'Example Domain' "$FUNCTION_FILE" && grep -q 'PMX-Firebase-Test' "$FUNCTION_FILE" && grep -q '"init":true' "$FUNCTION_FILE" && grep -q '"multi":9' "$FUNCTION_FILE"; then
   echo
   echo "RESULTAT: OK - Runtime compatible PMX."
 else

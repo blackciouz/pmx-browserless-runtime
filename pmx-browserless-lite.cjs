@@ -89,6 +89,16 @@ function createTimeout(timeoutMs) {
 }
 
 function puppeteerCompatiblePage(page) {
+  const originalEvaluate = page.evaluate.bind(page);
+  page.evaluate = async (fn, ...args) => {
+    if (args.length <= 1) return originalEvaluate(fn, args[0]);
+    if (typeof fn !== 'function') return originalEvaluate(fn, args[0]);
+    return originalEvaluate(({ source, values }) => {
+      const pageFn = (0, eval)('(' + source + ')');
+      return pageFn(...values);
+    }, { source: fn.toString(), values: args });
+  };
+
   if (typeof page.setUserAgent !== 'function') {
     page.setUserAgent = async (userAgent) => {
       if (typeof page.setExtraHTTPHeaders === 'function') {
@@ -112,7 +122,14 @@ function puppeteerCompatiblePage(page) {
 
   if (typeof page.evaluateOnNewDocument !== 'function') {
     page.evaluateOnNewDocument = async (fn, ...args) => {
-      await page.addInitScript(fn, ...args);
+      if (args.length <= 1) {
+        await page.addInitScript(fn, args[0]);
+        return;
+      }
+      await page.addInitScript(({ source, values }) => {
+        const pageFn = (0, eval)('(' + source + ')');
+        return pageFn(...values);
+      }, { source: fn.toString(), values: args });
     };
   }
 

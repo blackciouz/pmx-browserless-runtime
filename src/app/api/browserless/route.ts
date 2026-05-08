@@ -88,6 +88,16 @@ function timeoutPromise(timeoutMs: number): Promise<never> {
 }
 
 function puppeteerCompatiblePage(page: any): any {
+  const originalEvaluate = page.evaluate.bind(page);
+  page.evaluate = async (fn: unknown, ...args: unknown[]) => {
+    if (args.length <= 1) return originalEvaluate(fn, args[0]);
+    if (typeof fn !== 'function') return originalEvaluate(fn, args[0]);
+    return originalEvaluate(({ source, values }: { source: string; values: unknown[] }) => {
+      const pageFn = (0, eval)('(' + source + ')') as (...innerArgs: unknown[]) => unknown;
+      return pageFn(...values);
+    }, { source: fn.toString(), values: args });
+  };
+
   if (typeof page.setUserAgent !== 'function') {
     page.setUserAgent = async (userAgent: string) => {
       await page.setExtraHTTPHeaders?.({ 'User-Agent': userAgent });
@@ -107,7 +117,14 @@ function puppeteerCompatiblePage(page: any): any {
 
   if (typeof page.evaluateOnNewDocument !== 'function') {
     page.evaluateOnNewDocument = async (fn: (...args: unknown[]) => unknown, ...args: unknown[]) => {
-      await page.addInitScript(fn, ...args);
+      if (args.length <= 1) {
+        await page.addInitScript(fn, args[0]);
+        return;
+      }
+      await page.addInitScript(({ source, values }: { source: string; values: unknown[] }) => {
+        const pageFn = (0, eval)('(' + source + ')') as (...innerArgs: unknown[]) => unknown;
+        return pageFn(...values);
+      }, { source: fn.toString(), values: args });
     };
   }
 
