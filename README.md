@@ -79,9 +79,9 @@ standalone Node server in these environments: it can be killed after a short
 idle window. The direct `/pressure` and `/chromium/function` paths are rewritten
 to `/api/browserless`, so PMX can use a normal pressure URL.
 
-Firebase Studio defaults to `CONCURRENT=10` so PMX can use the available browser
-capacity without leaving the runtime idle. Lower it in `.env.firebase-studio`
-only if the workspace starts crashing or timing out.
+Firebase Studio defaults to `CONCURRENT=2`. This keeps the runtime useful without
+overloading small Firebase Studio workspaces. Increase it in `.env.firebase-studio`
+only after a real `/chromium/function` test stays stable.
 
 From a blank Firebase Studio workspace terminal:
 

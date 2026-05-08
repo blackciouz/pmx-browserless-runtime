@@ -8,7 +8,7 @@ cd "$ROOT"
 . "./scripts/firebase-studio-utils.sh"
 
 ENV_FILE=".env.firebase-studio"
-PMX_FIREBASE_DEFAULT_CONCURRENT="${PMX_FIREBASE_DEFAULT_CONCURRENT:-10}"
+PMX_FIREBASE_DEFAULT_CONCURRENT="${PMX_FIREBASE_DEFAULT_CONCURRENT:-2}"
 
 if [ ! -f "$ENV_FILE" ]; then
   TOKEN_VALUE="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
@@ -24,9 +24,9 @@ DEFAULT_TIMEOUT=300000
 EOF
 fi
 
-if grep -q "^CONCURRENT=1$" "$ENV_FILE"; then
+if grep -Eq "^CONCURRENT=(1|10)$" "$ENV_FILE"; then
   TMP_ENV="${ENV_FILE}.tmp"
-  sed "s/^CONCURRENT=1$/CONCURRENT=${PMX_FIREBASE_DEFAULT_CONCURRENT}/" "$ENV_FILE" > "$TMP_ENV"
+  sed -E "s/^CONCURRENT=(1|10)$/CONCURRENT=${PMX_FIREBASE_DEFAULT_CONCURRENT}/" "$ENV_FILE" > "$TMP_ENV"
   mv "$TMP_ENV" "$ENV_FILE"
 fi
 
