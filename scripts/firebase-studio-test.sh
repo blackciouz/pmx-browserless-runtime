@@ -27,36 +27,47 @@ CAPACITY_FILE="${TMP_DIR}/pmx-firebase-capacity.json"
 FUNCTION_FILE="${TMP_DIR}/pmx-firebase-function.json"
 LOCAL_PRESSURE="$(pmx_local_pressure_url)"
 
+pmx_fetch_json() {
+  label="$1"
+  url="$2"
+  output_file="$3"
+  shift 3
+
+  rm -f "$output_file"
+  if ! curl -fsS "$@" -o "$output_file" "$url"; then
+    echo
+    echo "RESULTAT: KO - ${label} ne repond pas sur ${BASE}."
+    echo "CAUSE: le process Next/Browserless n'est pas lance, il s'est arrete, ou le port ${PORT} n'est pas encore pret."
+    echo "FIX: garde le premier terminal ouvert avec:"
+    echo "sh scripts/firebase-studio-start.sh 2>&1 | tee /tmp/pmx-browserless-live.log"
+    exit 2
+  fi
+
+  if [ ! -s "$output_file" ]; then
+    echo
+    echo "RESULTAT: KO - ${label} a retourne une reponse vide."
+    echo "CAUSE: mauvais process sur le port ${PORT}, runtime pas pret, ou proxy Firebase incomplet."
+    exit 2
+  fi
+
+  cat "$output_file"
+}
+
 echo "Testing PMX Browserless runtime on ${BASE}"
 echo
 echo "PRESSURE"
-if ! curl -fsS "${BASE}/pressure?token=${TOKEN}" | tee "$PRESSURE_FILE"; then
-  echo
-  echo "RESULTAT: KO - aucun serveur ne repond sur ${BASE}."
-  echo "CAUSE: le process Next/Browserless n'est pas lance ou il s'est arrete."
-  echo "FIX: garde le premier terminal ouvert avec:"
-  echo "sh scripts/firebase-studio-start.sh 2>&1 | tee /tmp/pmx-browserless-live.log"
-  exit 2
-fi
+pmx_fetch_json "PRESSURE" "${BASE}/pressure?token=${TOKEN}" "$PRESSURE_FILE"
 echo
 echo
 echo "CAPACITY"
-if ! curl -fsS "${BASE}/capacity?token=${TOKEN}" | tee "$CAPACITY_FILE"; then
-  echo
-  echo "RESULTAT: KO - /capacity ne repond pas."
-  exit 2
-fi
+pmx_fetch_json "CAPACITY" "${BASE}/capacity?token=${TOKEN}" "$CAPACITY_FILE"
 echo
 echo
 echo "FUNCTION"
-if ! curl -fsS -X POST "${BASE}/chromium/function?token=${TOKEN}&timeout=30000" \
+pmx_fetch_json "FUNCTION" "${BASE}/chromium/function?token=${TOKEN}&timeout=30000" "$FUNCTION_FILE" \
+  -X POST \
   -H "Content-Type: application/json" \
-  --data '{"code":"async ({ page }) => { await page.setUserAgent(\"PMX-Firebase-Test/1.0\"); await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 }); await page.evaluateOnNewDocument(() => { window.__pmxInit = true; }); await page.setRequestInterception(true); page.on(\"request\", req => req.continue()); await page.goto(\"https://example.com\", { waitUntil: \"networkidle2\" }); return { title: await page.title(), url: page.url(), ua: await page.evaluate(() => navigator.userAgent), init: await page.evaluate(() => window.__pmxInit === true), multi: await page.evaluate((a, b, c) => a + b + c, 2, 3, 4) }; }","context":{}}' \
-  | tee "$FUNCTION_FILE"; then
-  echo
-  echo "RESULTAT: KO - /chromium/function ne repond pas correctement."
-  exit 2
-fi
+  --data '{"code":"async ({ page }) => { await page.setUserAgent(\"PMX-Firebase-Test/1.0\"); await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 }); await page.evaluateOnNewDocument(() => { window.__pmxInit = true; }); await page.setRequestInterception(true); page.on(\"request\", req => req.continue()); await page.goto(\"https://example.com\", { waitUntil: \"networkidle2\" }); return { title: await page.title(), url: page.url(), ua: await page.evaluate(() => navigator.userAgent), init: await page.evaluate(() => window.__pmxInit === true), multi: await page.evaluate((a, b, c) => a + b + c, 2, 3, 4) }; }","context":{}}'
 echo
 echo
 echo "========================================"

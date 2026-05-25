@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const port = String(process.env.PORT || '3000');
-const serverMode = String(process.env.PMX_NEXT_SERVER_MODE || (process.env.PMX_BROWSERLESS_FIREBASE_STUDIO === '1' ? 'start' : 'dev'));
+let serverMode = String(process.env.PMX_NEXT_SERVER_MODE || (process.env.PMX_BROWSERLESS_FIREBASE_STUDIO === '1' ? 'start' : 'dev'));
 const nextBin = path.join(process.cwd(), 'node_modules', 'next', 'dist', 'bin', 'next');
 const nextRequireHook = path.join(process.cwd(), 'node_modules', 'next', 'dist', 'server', 'require-hook.js');
 const buildIdFile = path.join(process.cwd(), '.next', 'BUILD_ID');
@@ -52,11 +52,14 @@ async function buildIfNeeded() {
   });
 }
 
-const args = serverMode === 'start'
-  ? ['start', '-H', '0.0.0.0', '-p', port]
-  : ['dev', '--webpack', '-H', '0.0.0.0', '-p', port];
+function nextArgs() {
+  return serverMode === 'start'
+    ? ['start', '-H', '0.0.0.0', '-p', port]
+    : ['dev', '--webpack', '-H', '0.0.0.0', '-p', port];
+}
 
 buildIfNeeded().then(() => {
+  const args = nextArgs();
   const child = runNext(args, serverMode === 'start' ? 'starting production runtime' : 'starting dev runtime');
 
   const forward = signal => {
@@ -77,6 +80,34 @@ buildIfNeeded().then(() => {
     process.exit(1);
   });
 }).catch(error => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(message);
+
+  const canFallbackToDev = serverMode === 'start' && process.env.PMX_NEXT_BUILD_FALLBACK_DEV !== '0';
+  if (!canFallbackToDev) {
+    process.exit(1);
+  }
+
+  console.error('[pmx-browserless] production build failed; falling back to Next dev runtime for this Firebase Studio session.');
+  serverMode = 'dev';
+  const args = nextArgs();
+  const child = runNext(args, 'starting dev runtime after build failure');
+
+  const forward = signal => {
+    if (!child.killed) child.kill(signal);
+  };
+
+  process.on('SIGINT', () => forward('SIGINT'));
+  process.on('SIGTERM', () => forward('SIGTERM'));
+
+  child.on('exit', (code, signal) => {
+    console.error(`[pmx-browserless] Next ${serverMode} server exited code=${code ?? ''} signal=${signal ?? ''}`);
+    if (signal) process.kill(process.pid, signal);
+    process.exit(code || 0);
+  });
+
+  child.on('error', childError => {
+    console.error(childError);
+    process.exit(1);
+  });
 });

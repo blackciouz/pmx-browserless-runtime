@@ -83,9 +83,10 @@ Firebase Studio defaults to `CONCURRENT=2`. This keeps the runtime useful withou
 overloading small Firebase Studio workspaces. Increase it in `.env.firebase-studio`
 only after a real `/chromium/function` test stays stable.
 
-Firebase Studio starts the Next API runtime in production mode by default
-(`next build`, then `next start`). This avoids Turbopack/dev-server exits in
-fresh workspaces and prevents stale builds after a repo update.
+Firebase Studio starts the Next API runtime in webpack dev mode by default.
+This avoids `next build` SIGBUS failures seen in small Firebase Studio
+workspaces. If you explicitly switch to production mode and the build fails, the
+launcher falls back to dev mode unless `PMX_NEXT_BUILD_FALLBACK_DEV=0`.
 
 The Next API runtime launches an isolated Chromium per request by default. This
 matches the Anyscale runner behavior and avoids cross-site crashes leaking
