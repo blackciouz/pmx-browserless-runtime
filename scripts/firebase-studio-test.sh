@@ -60,7 +60,14 @@ fi
 echo
 echo
 echo "========================================"
-pmx_print_capacity_summary "$CAPACITY_FILE"
+if ! pmx_print_capacity_summary "$CAPACITY_FILE"; then
+  echo
+  echo "RESULTAT: KO - /capacity a repondu, mais pas avec le JSON PMX attendu."
+  echo "CAUSE: mauvais process sur le port ${PORT}, proxy Firebase incomplet, ou runtime pas encore pret."
+  echo "FIX: arrete le terminal serveur, relance:"
+  echo "sh scripts/firebase-studio-start.sh"
+  exit 2
+fi
 echo
 echo "URL PMX LOCALE"
 echo "$LOCAL_PRESSURE"

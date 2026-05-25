@@ -49,8 +49,20 @@ pmx_print_capacity_summary() {
   node - "$json_file" <<'NODE'
 const fs = require('fs');
 const file = process.argv[2];
-const raw = fs.readFileSync(file, 'utf8');
-const data = JSON.parse(raw);
+const raw = fs.readFileSync(file, 'utf8').trim();
+if (!raw) {
+  console.error(`Capacity response is empty: ${file}`);
+  process.exit(2);
+}
+
+let data;
+try {
+  data = JSON.parse(raw);
+} catch (error) {
+  console.error(`Capacity response is not valid JSON: ${file}`);
+  console.error(raw.slice(0, 500));
+  process.exit(2);
+}
 const cores = data.cores ?? '?';
 const total = data.totalMemoryGb ?? '?';
 const free = data.freeMemoryGb ?? '?';

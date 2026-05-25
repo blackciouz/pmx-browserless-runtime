@@ -108,6 +108,10 @@ cd pmx-browserless-runtime
 sh scripts/firebase-studio-test.sh
 ```
 
+If your prompt already ends with `pmx-browserless-runtime`, do not run the
+`cd pmx-browserless-runtime` line again. The test script does not start the
+server; keep the first terminal running `sh scripts/firebase-studio-start.sh`.
+
 If the function test says that the Chromium executable is missing, run:
 
 ```bash
