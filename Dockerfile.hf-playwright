@@ -1,0 +1,28 @@
+FROM node:22-bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
+ENV CHROMIUM_PATH=/usr/bin/chromium
+ENV PORT=3000
+ENV CONCURRENT=1
+ENV QUEUED=20
+ENV TIMEOUT=300000
+ENV DEFAULT_TIMEOUT=300000
+ENV MAX_MEMORY_PERCENT=95
+ENV MAX_CPU_PERCENT=95
+ENV PMX_BROWSERLESS_MODE=playwright-lite
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates curl dumb-init chromium fonts-liberation \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev --ignore-scripts
+COPY pmx-browserless-lite.cjs ./
+
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 CMD curl -fsS "http://127.0.0.1:${PORT}/capacity?token=${TOKEN}" || exit 1
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "pmx-browserless-lite.cjs"]

@@ -7,7 +7,7 @@ It is intended for:
 - GitHub Codespaces
 - CodeSandbox templates
 - Firebase Studio workspaces
-- future Hugging Face Spaces Docker runtime
+- Hugging Face Spaces Docker runtime
 
 The runtime starts real Docker Browserless when Docker is available. If Docker is
 not available, it falls back to a Playwright-based compatible server that
@@ -20,6 +20,22 @@ supports the PMX endpoints used for qualification and campaign runs:
 
 The lite fallback does not expose Browserless CDP/live-session endpoints. Use
 Docker Browserless for human captcha live intervention.
+
+## Hugging Face Spaces Notes
+
+Use `Dockerfile.hf-playwright` for Hugging Face when the Browserless Docker image
+is blocked or unreliable. This runtime does not install or run Browserless
+itself; it installs system Chromium and serves the PMX-compatible Playwright lite
+API directly:
+
+```text
+GET  /pressure?token=<TOKEN>
+GET  /capacity?token=<TOKEN>
+POST /chromium/function?token=<TOKEN>&timeout=300000
+```
+
+The PMX Hugging Face provider defaults to this `playwright_lite` mode. Keep the
+legacy Browserless image only when CDP/live-session behavior is required.
 
 ## Modes
 
