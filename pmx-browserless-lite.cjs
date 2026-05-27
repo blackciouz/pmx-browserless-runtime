@@ -6,6 +6,9 @@ const TOKEN = process.env.BROWSERLESS_TOKEN || process.env.TOKEN || '';
 const PORT = Number(process.env.PORT || 3000);
 const CONCURRENT = positiveInt(process.env.CONCURRENT, 1);
 const QUEUED = positiveInt(process.env.QUEUED, 20);
+const HEADLESS = !['0', 'false', 'no', 'off'].includes(
+  String(process.env.PMX_BROWSERLESS_HEADLESS ?? process.env.HEADLESS ?? 'true').trim().toLowerCase(),
+);
 const DEFAULT_TIMEOUT = positiveInt(process.env.DEFAULT_TIMEOUT || process.env.TIMEOUT, 300000);
 const MAX_SLEEP_MS = positiveInt(process.env.MAX_SLEEP_MS, 600000);
 
@@ -201,7 +204,7 @@ async function runFunction(code, context, timeoutMs) {
   const work = (async () => {
     browser = await chromium.launch({
       executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || process.env.CHROMIUM_PATH || undefined,
-      headless: true,
+      headless: HEADLESS,
       args: [
         '--no-sandbox',
         '--disable-dev-shm-usage',
@@ -317,5 +320,5 @@ http.createServer(async (req, res) => {
   }
 }).listen(PORT, '0.0.0.0', () => {
   console.log(`PMX Browserless Lite listening on :${PORT}`);
-  console.log(`mode=playwright-lite concurrent=${CONCURRENT} queued=${QUEUED}`);
+  console.log(`mode=playwright-lite concurrent=${CONCURRENT} queued=${QUEUED} headless=${HEADLESS}`);
 });
