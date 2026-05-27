@@ -11,9 +11,6 @@ const QUEUED = positiveInt(process.env.QUEUED, 20);
 const DEFAULT_TIMEOUT = positiveInt(process.env.DEFAULT_TIMEOUT || process.env.TIMEOUT, 300_000);
 const MAX_BODY_BYTES = positiveInt(process.env.MAX_BODY_BYTES, 20_000_000);
 const REUSE_BROWSER = ['1', 'true', 'yes', 'on'].includes(String(process.env.PMX_REUSE_BROWSER || '').toLowerCase());
-const HEADLESS = !['0', 'false', 'no', 'off'].includes(
-  String(process.env.PMX_BROWSERLESS_HEADLESS ?? process.env.HEADLESS ?? 'true').trim().toLowerCase(),
-);
 
 let active = 0;
 let rejected = 0;
@@ -236,7 +233,7 @@ async function launchBrowser(): Promise<Browser> {
   const { chromium } = await import('playwright');
   return chromium.launch({
     executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || process.env.CHROMIUM_PATH || undefined,
-    headless: HEADLESS,
+    headless: true,
     args: [
       '--no-sandbox',
       '--disable-dev-shm-usage',
