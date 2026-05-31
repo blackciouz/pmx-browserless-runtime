@@ -17,6 +17,8 @@ let rejected = 0;
 const waiters: Array<{ resolve: (value: boolean) => void; timer: NodeJS.Timeout }> = [];
 let sharedBrowser: Browser | null = null;
 let launchPromise: Promise<Browser> | null = null;
+const pageOwner = new WeakMap<BrowserContext, unknown>();
+let lastCpuSample = readCpuSample();
 
 function positiveInt(value: unknown, fallback: number): number {
   const parsed = Number(value);
@@ -28,6 +30,31 @@ function json(payload: unknown, status = 200): NextResponse {
     status,
     headers: { 'cache-control': 'no-store' },
   });
+}
+
+function readCpuSample(): { idle: number; total: number } {
+  let idle = 0;
+  let total = 0;
+  for (const cpu of os.cpus()) {
+    const times = cpu.times || {};
+    idle += times.idle || 0;
+    total += (times.user || 0) + (times.nice || 0) + (times.sys || 0) + (times.irq || 0) + (times.idle || 0);
+  }
+  return { idle, total };
+}
+
+function cpuPercent(): number {
+  const current = readCpuSample();
+  const previous = lastCpuSample;
+  lastCpuSample = current;
+  const totalDelta = current.total - previous.total;
+  const idleDelta = current.idle - previous.idle;
+  if (totalDelta > 0) {
+    const busy = 1 - idleDelta / totalDelta;
+    return Math.max(0, Math.min(100, Math.round(busy * 100)));
+  }
+  const load = os.loadavg()[0] || 0;
+  return Math.max(0, Math.min(100, Math.round((load / Math.max(1, os.cpus().length)) * 100)));
 }
 
 function authorized(request: NextRequest): boolean {
@@ -185,6 +212,18 @@ function puppeteerCompatiblePage(page: any): any {
   return page;
 }
 
+async function closeExtraPages(context: BrowserContext | undefined, keepPage: unknown): Promise<void> {
+  if (!context || typeof context.pages !== 'function') return;
+  const pages = context.pages();
+  if (pages.length <= 1) return;
+  const keep = (keepPage as any) || pages[pages.length - 1];
+  for (const page of pages) {
+    if (page === keep) continue;
+    await page.close().catch(() => undefined);
+  }
+  if (keep) pageOwner.set(context, keep);
+}
+
 async function runFunction(code: unknown, context: unknown, timeoutMs: number): Promise<unknown> {
   const fn = compile(code);
   if (typeof fn !== 'function') throw new Error('Browserless code did not export a function');
@@ -195,15 +234,34 @@ async function runFunction(code: unknown, context: unknown, timeoutMs: number): 
   const work = (async () => {
     browserContext = await browser.newContext({
       ignoreHTTPSErrors: true,
-      viewport: { width: 1280, height: 900 },
+      viewport: { width: 1600, height: 1000 },
+    });
+    browserContext.on?.('page', async (newPage) => {
+      try {
+        const previous = pageOwner.get(browserContext as BrowserContext) as any;
+        await newPage.waitForLoadState?.('domcontentloaded', { timeout: 5000 }).catch(() => undefined);
+        if (previous && previous !== newPage && !previous.isClosed?.()) {
+          const nextUrl = newPage.url();
+          if (nextUrl && nextUrl !== 'about:blank') {
+            await previous.goto(nextUrl, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => undefined);
+          }
+          await newPage.close().catch(() => undefined);
+          await closeExtraPages(browserContext, previous);
+          return;
+        }
+        pageOwner.set(browserContext as BrowserContext, newPage);
+        await closeExtraPages(browserContext, newPage);
+      } catch (_) {}
     });
     const page = puppeteerCompatiblePage(await browserContext.newPage());
+    pageOwner.set(browserContext, page);
     return fn({ page, context: context || {}, browser });
   })();
 
   try {
     return await Promise.race([work, timeoutPromise(timeoutMs)]);
   } finally {
+    if (browserContext) await closeExtraPages(browserContext, pageOwner.get(browserContext)).catch(() => undefined);
     if (browserContext) await browserContext.close().catch(() => undefined);
     if (!REUSE_BROWSER) await browser.close().catch(() => undefined);
   }
@@ -239,14 +297,13 @@ async function launchBrowser(): Promise<Browser> {
       '--disable-dev-shm-usage',
       '--disable-gpu',
       '--disable-setuid-sandbox',
+      '--profile-directory=Default',
       '--no-first-run',
       '--no-default-browser-check',
-      '--disable-background-networking',
-      '--disable-component-update',
-      '--disable-default-apps',
-      '--disable-extensions',
-      '--disable-sync',
-      '--metrics-recording-only',
+      '--disable-search-engine-choice-screen',
+      '--disable-features=ChromeWhatsNewUI,OptimizationGuideModelDownloading,MediaRouter',
+      '--window-size=1600,1000',
+      '--start-maximized',
       '--mute-audio',
     ],
   });
@@ -256,7 +313,7 @@ function pressurePayload() {
   const total = os.totalmem();
   const free = os.freemem();
   const memory = Math.round(((total - free) / Math.max(1, total)) * 100);
-  const cpu = Math.min(100, Math.round((os.loadavg()[0] / Math.max(1, os.cpus().length)) * 100));
+  const cpu = cpuPercent();
   return {
     pressure: {
       cpu,

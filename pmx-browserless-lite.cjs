@@ -1,5 +1,6 @@
 const http = require('http');
 const os = require('os');
+const path = require('path');
 const { URL } = require('url');
 
 const TOKEN = process.env.BROWSERLESS_TOKEN || process.env.TOKEN || '';
@@ -12,10 +13,39 @@ const MAX_SLEEP_MS = positiveInt(process.env.MAX_SLEEP_MS, 600000);
 let active = 0;
 let rejected = 0;
 const waiters = [];
+const pageOwner = new WeakMap();
+let lastCpuSample = readCpuSample();
 
 function positiveInt(value, fallback) {
   const parsed = Number.parseInt(String(value || ''), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function readCpuSample() {
+  let idle = 0;
+  let total = 0;
+  for (const cpu of os.cpus()) {
+    const times = cpu.times || {};
+    idle += times.idle || 0;
+    total += (times.user || 0) + (times.nice || 0) + (times.sys || 0) + (times.irq || 0) + (times.idle || 0);
+  }
+  return { idle, total };
+}
+
+function cpuPercent() {
+  const current = readCpuSample();
+  const previous = lastCpuSample;
+  lastCpuSample = current;
+
+  const totalDelta = current.total - previous.total;
+  const idleDelta = current.idle - previous.idle;
+  if (totalDelta > 0) {
+    const busy = 1 - (idleDelta / totalDelta);
+    return Math.max(0, Math.min(100, Math.round(busy * 100)));
+  }
+
+  const load = os.loadavg()[0] || 0;
+  return Math.max(0, Math.min(100, Math.round((load / Math.max(1, os.cpus().length)) * 100)));
 }
 
 function sendJson(res, status, payload) {
@@ -190,6 +220,19 @@ function puppeteerCompatiblePage(page) {
   return page;
 }
 
+async function closeExtraPages(context, keepPage) {
+  if (!context || typeof context.pages !== 'function') return;
+  const pages = context.pages();
+  if (pages.length <= 1) return;
+  const newest = pages[pages.length - 1];
+  const keep = keepPage || newest;
+  for (const page of pages) {
+    if (page === keep) continue;
+    await page.close().catch(() => {});
+  }
+  if (keep) pageOwner.set(context, keep);
+}
+
 async function runFunction(code, context, timeoutMs) {
   const fn = compile(code);
   if (typeof fn !== 'function') throw new Error('Browserless code did not export a function');
@@ -198,24 +241,60 @@ async function runFunction(code, context, timeoutMs) {
   if (!chromium) throw new Error('Playwright chromium is unavailable');
 
   let browser;
+  let browserContext;
   const work = (async () => {
-    browser = await chromium.launch({
+    const headless = !/^(0|false|no)$/i.test(String(process.env.PMX_BROWSERLESS_HEADLESS || process.env.HEADLESS || 'true'));
+    const commonOptions = {
       executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || process.env.CHROMIUM_PATH || undefined,
-      headless: true,
+      headless,
       args: [
         '--no-sandbox',
         '--disable-dev-shm-usage',
         '--disable-gpu',
         '--disable-setuid-sandbox',
+        '--profile-directory=Default',
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--disable-search-engine-choice-screen',
+        '--disable-features=ChromeWhatsNewUI,OptimizationGuideModelDownloading,MediaRouter',
+        '--window-size=1600,1000',
+        '--start-maximized',
       ],
+    };
+    const userDataDir = process.env.PMX_BROWSERLESS_USER_DATA_DIR || path.join(os.tmpdir(), 'pmx-browserless-profile');
+    if (headless) {
+      browser = await chromium.launch(commonOptions);
+      browserContext = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+    } else {
+      browserContext = await chromium.launchPersistentContext(userDataDir, { ...commonOptions, viewport: { width: 1600, height: 1000 } });
+    }
+    browserContext.on?.('page', async (newPage) => {
+      try {
+        const previous = pageOwner.get(browserContext);
+        await newPage.waitForLoadState?.('domcontentloaded', { timeout: 5000 }).catch(() => {});
+        if (previous && previous !== newPage && !previous.isClosed?.()) {
+          const nextUrl = newPage.url();
+          if (nextUrl && nextUrl !== 'about:blank') {
+            await previous.goto(nextUrl, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
+          }
+          await newPage.close().catch(() => {});
+          await closeExtraPages(browserContext, previous);
+          return;
+        }
+        pageOwner.set(browserContext, newPage);
+        await closeExtraPages(browserContext, newPage);
+      } catch (_) {}
     });
-    const page = puppeteerCompatiblePage(await browser.newPage());
-    return fn({ page, context: context || {}, browser });
+    const page = puppeteerCompatiblePage(await browserContext.newPage());
+    pageOwner.set(browserContext, page);
+    return fn({ page, context: context || {}, browser: browser || browserContext });
   })();
 
   try {
     return await Promise.race([work, createTimeout(timeoutMs)]);
   } finally {
+    if (browserContext) await closeExtraPages(browserContext, pageOwner.get(browserContext)).catch(() => {});
+    if (browserContext) await browserContext.close().catch(() => {});
     if (browser) await browser.close().catch(() => {});
   }
 }
@@ -224,7 +303,7 @@ function pressurePayload() {
   const total = os.totalmem();
   const free = os.freemem();
   const memory = Math.round(((total - free) / Math.max(1, total)) * 100);
-  const cpu = Math.min(100, Math.round((os.loadavg()[0] / Math.max(1, os.cpus().length)) * 100));
+  const cpu = cpuPercent();
   return {
     pressure: {
       cpu,
