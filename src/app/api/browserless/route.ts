@@ -114,6 +114,24 @@ function timeoutPromise(timeoutMs: number): Promise<never> {
   });
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function bounded<T>(task: Promise<T>, timeoutMs: number): Promise<T | undefined> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      task,
+      new Promise<undefined>(resolve => {
+        timer = setTimeout(() => resolve(undefined), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 function puppeteerCompatiblePage(page: any): any {
   const originalEvaluate = page.evaluate.bind(page);
   page.evaluate = async (fn: unknown, ...args: unknown[]) => {
@@ -230,6 +248,8 @@ async function runFunction(code: unknown, context: unknown, timeoutMs: number): 
 
   const browser = REUSE_BROWSER ? await getBrowser() : await launchBrowser();
   let browserContext: BrowserContext | undefined;
+  let timedOut = false;
+  let timeoutTimer: NodeJS.Timeout | undefined;
 
   const work = (async () => {
     browserContext = await browser.newContext({
@@ -257,13 +277,24 @@ async function runFunction(code: unknown, context: unknown, timeoutMs: number): 
     pageOwner.set(browserContext, page);
     return fn({ page, context: context || {}, browser });
   })();
+  work.catch(() => undefined);
 
   try {
+    timeoutTimer = setTimeout(() => {
+      timedOut = true;
+      const contextToClose = browserContext;
+      if (contextToClose) bounded(contextToClose.close().catch(() => undefined), 2500).catch(() => undefined);
+      if (!REUSE_BROWSER) bounded(browser.close().catch(() => undefined), 2500).catch(() => undefined);
+    }, timeoutMs);
     return await Promise.race([work, timeoutPromise(timeoutMs)]);
   } finally {
-    if (browserContext) await closeExtraPages(browserContext, pageOwner.get(browserContext)).catch(() => undefined);
-    if (browserContext) await browserContext.close().catch(() => undefined);
-    if (!REUSE_BROWSER) await browser.close().catch(() => undefined);
+    if (timeoutTimer) clearTimeout(timeoutTimer);
+    if (browserContext && !timedOut) {
+      await bounded(closeExtraPages(browserContext, pageOwner.get(browserContext)).catch(() => undefined), 2000);
+    }
+    if (browserContext) await bounded(browserContext.close().catch(() => undefined), 3000);
+    if (!REUSE_BROWSER) await bounded(browser.close().catch(() => undefined), 3000);
+    if (timedOut) await sleep(25);
   }
 }
 

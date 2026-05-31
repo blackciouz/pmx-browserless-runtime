@@ -118,6 +118,24 @@ function createTimeout(timeoutMs) {
   });
 }
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function bounded(task, timeoutMs) {
+  let timer;
+  try {
+    return await Promise.race([
+      task,
+      new Promise(resolve => {
+        timer = setTimeout(() => resolve(undefined), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 function puppeteerCompatiblePage(page) {
   const originalEvaluate = page.evaluate.bind(page);
   page.evaluate = async (fn, ...args) => {
@@ -242,6 +260,8 @@ async function runFunction(code, context, timeoutMs) {
 
   let browser;
   let browserContext;
+  let timedOut = false;
+  let timeoutTimer;
   const work = (async () => {
     const headless = !/^(0|false|no)$/i.test(String(process.env.PMX_BROWSERLESS_HEADLESS || process.env.HEADLESS || 'true'));
     const commonOptions = {
@@ -289,13 +309,24 @@ async function runFunction(code, context, timeoutMs) {
     pageOwner.set(browserContext, page);
     return fn({ page, context: context || {}, browser: browser || browserContext });
   })();
+  work.catch(() => {});
 
   try {
+    timeoutTimer = setTimeout(() => {
+      timedOut = true;
+      const contextToClose = browserContext;
+      if (contextToClose) bounded(contextToClose.close().catch(() => {}), 2500).catch(() => {});
+      if (browser) bounded(browser.close().catch(() => {}), 2500).catch(() => {});
+    }, timeoutMs);
     return await Promise.race([work, createTimeout(timeoutMs)]);
   } finally {
-    if (browserContext) await closeExtraPages(browserContext, pageOwner.get(browserContext)).catch(() => {});
-    if (browserContext) await browserContext.close().catch(() => {});
-    if (browser) await browser.close().catch(() => {});
+    if (timeoutTimer) clearTimeout(timeoutTimer);
+    if (browserContext && !timedOut) {
+      await bounded(closeExtraPages(browserContext, pageOwner.get(browserContext)).catch(() => {}), 2000);
+    }
+    if (browserContext) await bounded(browserContext.close().catch(() => {}), 3000);
+    if (browser) await bounded(browser.close().catch(() => {}), 3000);
+    if (timedOut) await sleep(25);
   }
 }
 
