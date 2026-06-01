@@ -284,9 +284,9 @@ async function runFunction(code, context, timeoutMs) {
     const userDataDir = process.env.PMX_BROWSERLESS_USER_DATA_DIR || path.join(os.tmpdir(), 'pmx-browserless-profile');
     if (headless) {
       browser = await chromium.launch(commonOptions);
-      browserContext = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+      browserContext = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1600, height: 1000 } });
     } else {
-      browserContext = await chromium.launchPersistentContext(userDataDir, { ...commonOptions, viewport: { width: 1600, height: 1000 } });
+      browserContext = await chromium.launchPersistentContext(userDataDir, { ...commonOptions, ignoreHTTPSErrors: true, viewport: { width: 1600, height: 1000 } });
     }
     browserContext.on?.('page', async (newPage) => {
       try {
@@ -380,16 +380,17 @@ http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
     if (!authorized(url)) return sendJson(res, 401, { error: 'Invalid token' });
+    const apiAction = url.pathname === '/api/browserless' ? (url.searchParams.get('action') || 'health') : null;
 
-    if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
+    if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/' || (apiAction === 'health'))) {
       return sendJson(res, 200, { ok: true, mode: 'playwright-lite' });
     }
 
-    if (req.method === 'GET' && url.pathname === '/pressure') {
+    if (req.method === 'GET' && (url.pathname === '/pressure' || apiAction === 'pressure')) {
       return sendJson(res, 200, pressurePayload());
     }
 
-    if (req.method === 'GET' && url.pathname === '/capacity') {
+    if (req.method === 'GET' && (url.pathname === '/capacity' || apiAction === 'capacity')) {
       return sendJson(res, 200, capacityPayload());
     }
 
@@ -407,7 +408,7 @@ http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, sleptMs: ms });
     }
 
-    if (req.method === 'POST' && (url.pathname === '/chromium/function' || url.pathname === '/function')) {
+    if (req.method === 'POST' && (url.pathname === '/chromium/function' || url.pathname === '/function' || apiAction === 'function')) {
       const timeoutMs = positiveInt(url.searchParams.get('timeout'), DEFAULT_TIMEOUT);
       const slot = await acquire(timeoutMs);
       if (!slot) return sendJson(res, 429, { error: 'Queue full or acquire timeout' });
