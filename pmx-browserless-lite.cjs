@@ -51,6 +51,45 @@ function restoreProtectedEnv(snapshot) {
   }
 }
 
+function proxyFromContext(context) {
+  const raw = context && typeof context === 'object'
+    ? (context.browserlessProxy || context.proxy || context.proxyUrl)
+    : null;
+  if (!raw) return null;
+
+  let server = '';
+  let username = '';
+  let password = '';
+
+  if (typeof raw === 'string') {
+    server = raw.trim();
+  } else if (raw && typeof raw === 'object') {
+    server = String(raw.server || raw.url || '').trim();
+    username = String(raw.username || '').trim();
+    password = String(raw.password || '');
+  }
+
+  if (!server) return null;
+  let parsed;
+  try {
+    parsed = new URL(server);
+  } catch {
+    throw new Error('Invalid proxy URL');
+  }
+  if (!['http:', 'https:', 'socks4:', 'socks5:'].includes(parsed.protocol)) {
+    throw new Error('Unsupported proxy protocol');
+  }
+
+  const proxy = {
+    server: `${parsed.protocol}//${parsed.hostname}${parsed.port ? `:${parsed.port}` : ''}`,
+  };
+  const parsedUsername = decodeURIComponent(parsed.username || '');
+  const parsedPassword = decodeURIComponent(parsed.password || '');
+  if (username || parsedUsername) proxy.username = username || parsedUsername;
+  if (password || parsedPassword) proxy.password = password || parsedPassword;
+  return proxy;
+}
+
 function readCpuSample() {
   let idle = 0;
   let total = 0;
@@ -295,6 +334,7 @@ async function runFunction(code, context, timeoutMs) {
   let timeoutTimer;
   const work = (async () => {
     const headless = !/^(0|false|no)$/i.test(String(process.env.PMX_BROWSERLESS_HEADLESS || process.env.HEADLESS || 'true'));
+    const proxy = proxyFromContext(context);
     const commonOptions = {
       executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || process.env.CHROMIUM_PATH || undefined,
       headless,
@@ -316,9 +356,9 @@ async function runFunction(code, context, timeoutMs) {
     const userDataDir = process.env.PMX_BROWSERLESS_USER_DATA_DIR || path.join(os.tmpdir(), 'pmx-browserless-profile');
     if (headless || IS_FIREBASE_STUDIO) {
       browser = await chromium.launch(commonOptions);
-      browserContext = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1600, height: 1000 } });
+      browserContext = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1600, height: 1000 }, ...(proxy ? { proxy } : {}) });
     } else {
-      browserContext = await chromium.launchPersistentContext(userDataDir, { ...commonOptions, ignoreHTTPSErrors: true, viewport: { width: 1600, height: 1000 } });
+      browserContext = await chromium.launchPersistentContext(userDataDir, { ...commonOptions, ignoreHTTPSErrors: true, viewport: { width: 1600, height: 1000 }, ...(proxy ? { proxy } : {}) });
     }
     browserContext.on?.('page', async (newPage) => {
       try {

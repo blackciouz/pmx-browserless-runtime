@@ -62,6 +62,46 @@ function restoreProtectedEnv(snapshot: Partial<Record<(typeof PROTECTED_ENV_KEYS
   }
 }
 
+function proxyFromContext(context: unknown): { server: string; username?: string; password?: string } | null {
+  const source = context && typeof context === 'object'
+    ? context as Record<string, unknown>
+    : {};
+  const raw = source.browserlessProxy ?? source.proxy ?? source.proxyUrl;
+  if (!raw) return null;
+
+  let server = '';
+  let username = '';
+  let password = '';
+  if (typeof raw === 'string') {
+    server = raw.trim();
+  } else if (raw && typeof raw === 'object') {
+    const record = raw as Record<string, unknown>;
+    server = String(record.server ?? record.url ?? '').trim();
+    username = String(record.username ?? '').trim();
+    password = String(record.password ?? '');
+  }
+
+  if (!server) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(server);
+  } catch {
+    throw new Error('Invalid proxy URL');
+  }
+  if (!['http:', 'https:', 'socks4:', 'socks5:'].includes(parsed.protocol)) {
+    throw new Error('Unsupported proxy protocol');
+  }
+
+  const proxy: { server: string; username?: string; password?: string } = {
+    server: `${parsed.protocol}//${parsed.hostname}${parsed.port ? `:${parsed.port}` : ''}`,
+  };
+  const parsedUsername = decodeURIComponent(parsed.username || '');
+  const parsedPassword = decodeURIComponent(parsed.password || '');
+  if (username || parsedUsername) proxy.username = username || parsedUsername;
+  if (password || parsedPassword) proxy.password = password || parsedPassword;
+  return proxy;
+}
+
 function readCpuSample(): { idle: number; total: number } {
   let idle = 0;
   let total = 0;
@@ -283,9 +323,11 @@ async function runFunction(code: unknown, context: unknown, timeoutMs: number): 
   let timeoutTimer: NodeJS.Timeout | undefined;
 
   const work = (async () => {
+    const proxy = proxyFromContext(context);
     browserContext = await browser.newContext({
       ignoreHTTPSErrors: true,
       viewport: { width: 1600, height: 1000 },
+      ...(proxy ? { proxy } : {}),
     });
     browserContext.on?.('page', async (newPage) => {
       try {
