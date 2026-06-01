@@ -104,4 +104,12 @@ if [ -z "${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}" ]; then
     || true
 fi
 
+if [ "${PMX_BROWSERLESS_FIREBASE_STUDIO:-}" = "1" ] \
+  && [ "${PMX_FIREBASE_HEADFUL_XVFB:-1}" = "1" ] \
+  && command -v xvfb-run >/dev/null 2>&1; then
+  export PMX_BROWSERLESS_HEADLESS="${PMX_BROWSERLESS_HEADLESS:-false}"
+  echo "Starting lite runtime under xvfb-run for Firebase Studio Chromium stability..."
+  exec xvfb-run -a node pmx-browserless-lite.cjs
+fi
+
 exec node pmx-browserless-lite.cjs
