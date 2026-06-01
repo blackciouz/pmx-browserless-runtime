@@ -9,6 +9,7 @@ const CONCURRENT = positiveInt(process.env.CONCURRENT, 1);
 const QUEUED = positiveInt(process.env.QUEUED, 20);
 const DEFAULT_TIMEOUT = positiveInt(process.env.DEFAULT_TIMEOUT || process.env.TIMEOUT, 300000);
 const MAX_SLEEP_MS = positiveInt(process.env.MAX_SLEEP_MS, 600000);
+const IS_FIREBASE_STUDIO = process.env.PMX_BROWSERLESS_FIREBASE_STUDIO === '1';
 const BASE_LAUNCH_ENV = { ...process.env };
 const PROTECTED_ENV_KEYS = [
   'LD_LIBRARY_PATH',
@@ -313,7 +314,7 @@ async function runFunction(code, context, timeoutMs) {
       env: BASE_LAUNCH_ENV,
     };
     const userDataDir = process.env.PMX_BROWSERLESS_USER_DATA_DIR || path.join(os.tmpdir(), 'pmx-browserless-profile');
-    if (headless) {
+    if (headless || IS_FIREBASE_STUDIO) {
       browser = await chromium.launch(commonOptions);
       browserContext = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1600, height: 1000 } });
     } else {
