@@ -110,6 +110,11 @@ This avoids `next build` SIGBUS failures seen in small Firebase Studio
 workspaces. If you explicitly switch to production mode and the build fails, the
 launcher falls back to dev mode unless `PMX_NEXT_BUILD_FALLBACK_DEV=0`.
 
+The Firebase Studio launcher keeps an existing `.env.firebase-studio` token
+stable. `PMX_TOKEN` is only used when the env file is created or when the token
+is missing. To intentionally rotate the token, run with
+`PMX_FIREBASE_FORCE_TOKEN_UPDATE=1 PMX_TOKEN=<new-token>`.
+
 The Next API runtime launches an isolated Chromium per request by default. This
 matches the Anyscale runner behavior and avoids cross-site crashes leaking
 between qualification leads. Set `PMX_REUSE_BROWSER=1` only when speed matters

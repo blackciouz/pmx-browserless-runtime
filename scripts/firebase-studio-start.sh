@@ -11,8 +11,37 @@ ENV_FILE=".env.firebase-studio"
 PMX_FIREBASE_DEFAULT_CONCURRENT="${PMX_FIREBASE_DEFAULT_CONCURRENT:-2}"
 PMX_FIREBASE_DEFAULT_MODE="${PMX_FIREBASE_DEFAULT_MODE:-lite}"
 
+pmx_random_token() {
+  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+}
+
+pmx_start_token_value() {
+  if [ -n "${PMX_TOKEN:-}" ]; then
+    printf '%s' "$PMX_TOKEN"
+  else
+    pmx_random_token
+  fi
+}
+
+pmx_env_has_token() {
+  grep -Eq "^(BROWSERLESS_TOKEN|TOKEN)=.+" "$ENV_FILE"
+}
+
+pmx_set_env_value() {
+  key="$1"
+  value="$2"
+  TMP_ENV="${ENV_FILE}.tmp"
+  if grep -q "^${key}=" "$ENV_FILE"; then
+    sed "s#^${key}=.*#${key}=${value}#" "$ENV_FILE" > "$TMP_ENV"
+  else
+    cp "$ENV_FILE" "$TMP_ENV"
+    printf '%s=%s\n' "$key" "$value" >> "$TMP_ENV"
+  fi
+  mv "$TMP_ENV" "$ENV_FILE"
+}
+
 if [ ! -f "$ENV_FILE" ]; then
-  TOKEN_VALUE="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
+  TOKEN_VALUE="$(pmx_start_token_value)"
   cat > "$ENV_FILE" <<EOF
 BROWSERLESS_TOKEN=${TOKEN_VALUE}
 TOKEN=${TOKEN_VALUE}
@@ -27,6 +56,19 @@ QUEUED=20
 TIMEOUT=300000
 DEFAULT_TIMEOUT=300000
 EOF
+else
+  if [ "${PMX_FIREBASE_FORCE_TOKEN_UPDATE:-0}" = "1" ] && [ -n "${PMX_TOKEN:-}" ]; then
+    pmx_set_env_value "BROWSERLESS_TOKEN" "$PMX_TOKEN"
+    pmx_set_env_value "TOKEN" "$PMX_TOKEN"
+    echo "TOKEN_UPDATE=forced from PMX_TOKEN"
+  elif ! pmx_env_has_token; then
+    TOKEN_VALUE="$(pmx_start_token_value)"
+    pmx_set_env_value "BROWSERLESS_TOKEN" "$TOKEN_VALUE"
+    pmx_set_env_value "TOKEN" "$TOKEN_VALUE"
+    echo "TOKEN_UPDATE=initialized missing token"
+  elif [ -n "${PMX_TOKEN:-}" ]; then
+    echo "TOKEN_UPDATE=preserved existing .env.firebase-studio token; set PMX_FIREBASE_FORCE_TOKEN_UPDATE=1 to replace it"
+  fi
 fi
 
 if grep -Eq "^PMX_BROWSERLESS_MODE=next-api$" "$ENV_FILE" && [ "${PMX_FIREBASE_KEEP_NEXT_API:-0}" != "1" ]; then
