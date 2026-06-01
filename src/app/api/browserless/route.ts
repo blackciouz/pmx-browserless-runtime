@@ -11,6 +11,18 @@ const QUEUED = positiveInt(process.env.QUEUED, 20);
 const DEFAULT_TIMEOUT = positiveInt(process.env.DEFAULT_TIMEOUT || process.env.TIMEOUT, 300_000);
 const MAX_BODY_BYTES = positiveInt(process.env.MAX_BODY_BYTES, 20_000_000);
 const REUSE_BROWSER = ['1', 'true', 'yes', 'on'].includes(String(process.env.PMX_REUSE_BROWSER || '').toLowerCase());
+const HEADLESS = !/^(0|false|no)$/i.test(String(process.env.PMX_BROWSERLESS_HEADLESS || process.env.HEADLESS || 'true'));
+const BASE_LAUNCH_ENV = { ...process.env };
+const PROTECTED_ENV_KEYS = [
+  'LD_LIBRARY_PATH',
+  'PATH',
+  'NODE_OPTIONS',
+  'DISPLAY',
+  'XDG_DATA_DIRS',
+  'PLAYWRIGHT_BROWSERS_PATH',
+  'PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH',
+  'CHROMIUM_PATH',
+] as const;
 
 let active = 0;
 let rejected = 0;
@@ -30,6 +42,24 @@ function json(payload: unknown, status = 200): NextResponse {
     status,
     headers: { 'cache-control': 'no-store' },
   });
+}
+
+function snapshotProtectedEnv(): Partial<Record<(typeof PROTECTED_ENV_KEYS)[number], string>> {
+  const snapshot: Partial<Record<(typeof PROTECTED_ENV_KEYS)[number], string>> = {};
+  for (const key of PROTECTED_ENV_KEYS) {
+    if (process.env[key] !== undefined) snapshot[key] = process.env[key];
+  }
+  return snapshot;
+}
+
+function restoreProtectedEnv(snapshot: Partial<Record<(typeof PROTECTED_ENV_KEYS)[number], string>>): void {
+  for (const key of PROTECTED_ENV_KEYS) {
+    if (snapshot[key] === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = snapshot[key];
+    }
+  }
 }
 
 function readCpuSample(): { idle: number; total: number } {
@@ -246,6 +276,7 @@ async function runFunction(code: unknown, context: unknown, timeoutMs: number): 
   const fn = compile(code);
   if (typeof fn !== 'function') throw new Error('Browserless code did not export a function');
 
+  const envSnapshot = snapshotProtectedEnv();
   const browser = REUSE_BROWSER ? await getBrowser() : await launchBrowser();
   let browserContext: BrowserContext | undefined;
   let timedOut = false;
@@ -294,6 +325,7 @@ async function runFunction(code: unknown, context: unknown, timeoutMs: number): 
     }
     if (browserContext) await bounded(browserContext.close().catch(() => undefined), 3000);
     if (!REUSE_BROWSER) await bounded(browser.close().catch(() => undefined), 3000);
+    restoreProtectedEnv(envSnapshot);
     if (timedOut) await sleep(25);
   }
 }
@@ -322,7 +354,8 @@ async function launchBrowser(): Promise<Browser> {
   const { chromium } = await import('playwright');
   return chromium.launch({
     executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || process.env.CHROMIUM_PATH || undefined,
-    headless: true,
+    headless: HEADLESS,
+    env: BASE_LAUNCH_ENV,
     args: [
       '--no-sandbox',
       '--disable-dev-shm-usage',

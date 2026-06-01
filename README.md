@@ -99,6 +99,12 @@ Firebase Studio defaults to `CONCURRENT=2`. This keeps the runtime useful withou
 overloading small Firebase Studio workspaces. Increase it in `.env.firebase-studio`
 only after a real `/chromium/function` test stays stable.
 
+Firebase Studio also defaults to `PMX_FIREBASE_HEADFUL_XVFB=1`. The launcher
+runs the Next API runtime under `xvfb-run` and sets Chromium to headed mode
+inside the virtual display. Keep this enabled unless you are debugging basic
+headless-only pages; it is required for some popover/combobox forms that crash
+the Firebase system Chromium in pure headless mode.
+
 Firebase Studio starts the Next API runtime in webpack dev mode by default.
 This avoids `next build` SIGBUS failures seen in small Firebase Studio
 workspaces. If you explicitly switch to production mode and the build fails, the
@@ -123,6 +129,15 @@ In a second terminal, test local compatibility:
 ```bash
 cd pmx-browserless-runtime
 sh scripts/firebase-studio-test.sh
+```
+
+The test script runs a basic Browserless compatibility check and, by default,
+a strict form canary against a searchable combobox. If the strict canary fails,
+do not register the Firebase Studio URL as a primary PMX provider for complex
+forms yet. For a basic-only smoke test, run:
+
+```bash
+PMX_FIREBASE_STRICT_FORM_TESTS=0 sh scripts/firebase-studio-test.sh
 ```
 
 If your prompt already ends with `pmx-browserless-runtime`, do not run the

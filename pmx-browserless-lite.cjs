@@ -9,6 +9,17 @@ const CONCURRENT = positiveInt(process.env.CONCURRENT, 1);
 const QUEUED = positiveInt(process.env.QUEUED, 20);
 const DEFAULT_TIMEOUT = positiveInt(process.env.DEFAULT_TIMEOUT || process.env.TIMEOUT, 300000);
 const MAX_SLEEP_MS = positiveInt(process.env.MAX_SLEEP_MS, 600000);
+const BASE_LAUNCH_ENV = { ...process.env };
+const PROTECTED_ENV_KEYS = [
+  'LD_LIBRARY_PATH',
+  'PATH',
+  'NODE_OPTIONS',
+  'DISPLAY',
+  'XDG_DATA_DIRS',
+  'PLAYWRIGHT_BROWSERS_PATH',
+  'PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH',
+  'CHROMIUM_PATH',
+];
 
 let active = 0;
 let rejected = 0;
@@ -19,6 +30,24 @@ let lastCpuSample = readCpuSample();
 function positiveInt(value, fallback) {
   const parsed = Number.parseInt(String(value || ''), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function snapshotProtectedEnv() {
+  const snapshot = {};
+  for (const key of PROTECTED_ENV_KEYS) {
+    if (process.env[key] !== undefined) snapshot[key] = process.env[key];
+  }
+  return snapshot;
+}
+
+function restoreProtectedEnv(snapshot) {
+  for (const key of PROTECTED_ENV_KEYS) {
+    if (snapshot[key] === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = snapshot[key];
+    }
+  }
 }
 
 function readCpuSample() {
@@ -258,6 +287,7 @@ async function runFunction(code, context, timeoutMs) {
   const chromium = playwright.chromium || (playwright.default && playwright.default.chromium);
   if (!chromium) throw new Error('Playwright chromium is unavailable');
 
+  const envSnapshot = snapshotProtectedEnv();
   let browser;
   let browserContext;
   let timedOut = false;
@@ -280,6 +310,7 @@ async function runFunction(code, context, timeoutMs) {
         '--window-size=1600,1000',
         '--start-maximized',
       ],
+      env: BASE_LAUNCH_ENV,
     };
     const userDataDir = process.env.PMX_BROWSERLESS_USER_DATA_DIR || path.join(os.tmpdir(), 'pmx-browserless-profile');
     if (headless) {
@@ -326,6 +357,7 @@ async function runFunction(code, context, timeoutMs) {
     }
     if (browserContext) await bounded(browserContext.close().catch(() => {}), 3000);
     if (browser) await bounded(browser.close().catch(() => {}), 3000);
+    restoreProtectedEnv(envSnapshot);
     if (timedOut) await sleep(25);
   }
 }

@@ -65,6 +65,13 @@ if [ "${PMX_BROWSERLESS_MODE}" = "next-api" ]; then
       || npx playwright install chromium >>/tmp/pmx-playwright-install.log 2>&1 \
       || true
   fi
+  if [ "${PMX_BROWSERLESS_FIREBASE_STUDIO:-}" = "1" ] \
+    && [ "${PMX_FIREBASE_HEADFUL_XVFB:-1}" = "1" ] \
+    && command -v xvfb-run >/dev/null 2>&1; then
+    export PMX_BROWSERLESS_HEADLESS="${PMX_BROWSERLESS_HEADLESS:-false}"
+    echo "Starting Next API runtime under xvfb-run for Firebase Studio Chromium stability..."
+    exec xvfb-run -a npm run next-api
+  fi
   exec npm run next-api
 fi
 

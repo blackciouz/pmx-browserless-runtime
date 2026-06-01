@@ -4,6 +4,7 @@
   packages = [
     pkgs.nodejs_20
     pkgs.chromium
+    pkgs.xorg.xvfb
     pkgs.coreutils
     pkgs.util-linux
   ];
@@ -14,6 +15,7 @@
     PMX_NEXT_SERVER_MODE = "start";
     PMX_NEXT_FORCE_BUILD = "1";
     PMX_REUSE_BROWSER = "0";
+    PMX_FIREBASE_HEADFUL_XVFB = "1";
     PORT = "3000";
     CONCURRENT = "2";
     QUEUED = "20";
