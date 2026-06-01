@@ -12,6 +12,8 @@ const DEFAULT_TIMEOUT = positiveInt(process.env.DEFAULT_TIMEOUT || process.env.T
 const MAX_BODY_BYTES = positiveInt(process.env.MAX_BODY_BYTES, 20_000_000);
 const REUSE_BROWSER = ['1', 'true', 'yes', 'on'].includes(String(process.env.PMX_REUSE_BROWSER || '').toLowerCase());
 const HEADLESS = !/^(0|false|no)$/i.test(String(process.env.PMX_BROWSERLESS_HEADLESS || process.env.HEADLESS || 'true'));
+const WINDOW_WIDTH = positiveInt(process.env.PMX_BROWSERLESS_WINDOW_WIDTH, 1920);
+const WINDOW_HEIGHT = positiveInt(process.env.PMX_BROWSERLESS_WINDOW_HEIGHT, 1080);
 const BASE_LAUNCH_ENV = { ...process.env };
 const PROTECTED_ENV_KEYS = [
   'LD_LIBRARY_PATH',
@@ -326,7 +328,7 @@ async function runFunction(code: unknown, context: unknown, timeoutMs: number): 
     const proxy = proxyFromContext(context);
     browserContext = await browser.newContext({
       ignoreHTTPSErrors: true,
-      viewport: { width: 1600, height: 1000 },
+      viewport: HEADLESS ? { width: 1600, height: 1000 } : null,
       ...(proxy ? { proxy } : {}),
     });
     browserContext.on?.('page', async (newPage) => {
@@ -408,7 +410,8 @@ async function launchBrowser(): Promise<Browser> {
       '--no-default-browser-check',
       '--disable-search-engine-choice-screen',
       '--disable-features=ChromeWhatsNewUI,OptimizationGuideModelDownloading,MediaRouter',
-      '--window-size=1600,1000',
+      `--window-size=${WINDOW_WIDTH},${WINDOW_HEIGHT}`,
+      '--window-position=0,0',
       '--start-maximized',
       '--mute-audio',
     ],

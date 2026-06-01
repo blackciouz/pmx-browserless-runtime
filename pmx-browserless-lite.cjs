@@ -9,6 +9,8 @@ const CONCURRENT = positiveInt(process.env.CONCURRENT, 1);
 const QUEUED = positiveInt(process.env.QUEUED, 20);
 const DEFAULT_TIMEOUT = positiveInt(process.env.DEFAULT_TIMEOUT || process.env.TIMEOUT, 300000);
 const MAX_SLEEP_MS = positiveInt(process.env.MAX_SLEEP_MS, 600000);
+const WINDOW_WIDTH = positiveInt(process.env.PMX_BROWSERLESS_WINDOW_WIDTH, 1920);
+const WINDOW_HEIGHT = positiveInt(process.env.PMX_BROWSERLESS_WINDOW_HEIGHT, 1080);
 const IS_FIREBASE_STUDIO = process.env.PMX_BROWSERLESS_FIREBASE_STUDIO === '1';
 const BASE_LAUNCH_ENV = { ...process.env };
 const PROTECTED_ENV_KEYS = [
@@ -348,7 +350,8 @@ async function runFunction(code, context, timeoutMs) {
         '--no-default-browser-check',
         '--disable-search-engine-choice-screen',
         '--disable-features=ChromeWhatsNewUI,OptimizationGuideModelDownloading,MediaRouter',
-        '--window-size=1600,1000',
+        `--window-size=${WINDOW_WIDTH},${WINDOW_HEIGHT}`,
+        '--window-position=0,0',
         '--start-maximized',
       ],
       env: BASE_LAUNCH_ENV,
@@ -358,7 +361,7 @@ async function runFunction(code, context, timeoutMs) {
       browser = await chromium.launch(commonOptions);
       browserContext = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1600, height: 1000 }, ...(proxy ? { proxy } : {}) });
     } else {
-      browserContext = await chromium.launchPersistentContext(userDataDir, { ...commonOptions, ignoreHTTPSErrors: true, viewport: { width: 1600, height: 1000 }, ...(proxy ? { proxy } : {}) });
+      browserContext = await chromium.launchPersistentContext(userDataDir, { ...commonOptions, ignoreHTTPSErrors: true, viewport: null, ...(proxy ? { proxy } : {}) });
     }
     browserContext.on?.('page', async (newPage) => {
       try {
