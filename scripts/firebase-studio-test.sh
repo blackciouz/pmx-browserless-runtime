@@ -18,7 +18,7 @@ set -a
 . "./$ENV_FILE"
 set +a
 
-TOKEN="${BROWSERLESS_TOKEN:-${TOKEN:-change-me}}"
+TOKEN="${PMX_TEST_TOKEN:-${BROWSERLESS_TOKEN:-${TOKEN:-change-me}}}"
 PORT="${PORT:-3000}"
 BASE="http://localhost:${PORT}"
 TMP_DIR="${TMPDIR:-/tmp}"
