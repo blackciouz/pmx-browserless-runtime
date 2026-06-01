@@ -412,13 +412,21 @@ http.createServer(async (req, res) => {
       const timeoutMs = positiveInt(url.searchParams.get('timeout'), DEFAULT_TIMEOUT);
       const slot = await acquire(timeoutMs);
       if (!slot) return sendJson(res, 429, { error: 'Queue full or acquire timeout' });
+      let released = false;
+      const safeRelease = () => {
+        if (released) return;
+        released = true;
+        release();
+      };
+      const leaseTimer = setTimeout(safeRelease, timeoutMs + 15000);
       try {
         const body = await readBody(req);
         const payload = body ? JSON.parse(body) : {};
         const data = await runFunction(payload.code, payload.context || {}, timeoutMs);
         return sendJson(res, 200, { data });
       } finally {
-        release();
+        clearTimeout(leaseTimer);
+        safeRelease();
       }
     }
 
