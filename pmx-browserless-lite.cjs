@@ -507,7 +507,14 @@ http.createServer(async (req, res) => {
         heartbeatTimer = setInterval(() => {
           try { res.write(' '); } catch (_) {}
         }, 15_000);
-        const data = await runFunction(payload.code, payload.context || {}, timeoutMs);
+        let data;
+        try {
+          data = await runFunction(payload.code, payload.context || {}, timeoutMs);
+        } catch (runErr) {
+          if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+          res.end(JSON.stringify({ error: runErr instanceof Error ? runErr.message : String(runErr) }));
+          return;
+        }
         if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
         res.end(JSON.stringify({ data }));
       } finally {
