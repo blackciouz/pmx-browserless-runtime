@@ -495,14 +495,26 @@ http.createServer(async (req, res) => {
         release();
       };
       const leaseTimer = setTimeout(safeRelease, timeoutMs + 15000);
+      let heartbeatTimer = null;
       try {
         const body = await readBody(req);
         const payload = body ? JSON.parse(body) : {};
+        res.writeHead(200, {
+          'content-type': 'application/json; charset=utf-8',
+          'cache-control': 'no-store',
+          'transfer-encoding': 'chunked',
+        });
+        heartbeatTimer = setInterval(() => {
+          try { res.write(' '); } catch (_) {}
+        }, 15_000);
         const data = await runFunction(payload.code, payload.context || {}, timeoutMs);
-        return sendJson(res, 200, { data });
+        if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+        res.end(JSON.stringify({ data }));
       } finally {
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
         clearTimeout(leaseTimer);
         safeRelease();
+        try { if (!res.writableEnded) res.end(); } catch (_) {}
       }
     }
 
