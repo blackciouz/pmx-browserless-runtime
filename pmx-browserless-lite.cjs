@@ -527,7 +527,8 @@ http.createServer(async (req, res) => {
 
     return sendJson(res, 404, { error: 'Not found', mode: 'playwright-lite' });
   } catch (error) {
-    return sendJson(res, 500, { error: error instanceof Error ? error.message : String(error) });
+    if (!res.headersSent) return sendJson(res, 500, { error: error instanceof Error ? error.message : String(error) });
+    try { if (!res.writableEnded) res.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) })); } catch (_) {}
   }
 }).listen(PORT, '0.0.0.0', () => {
   console.log(`PMX Browserless Lite listening on :${PORT}`);
